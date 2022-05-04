@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from preprocessing import index_players, get_num_players
-from datasets import get_dota2_dataset, get_lol_dataset, get_melee_dataset, get_sc2_dataset
+from datasets import get_dota2_dataset, get_lol_dataset, get_melee_dataset, get_sc2_dataset, get_dummy_dataset
 from glicko import Glicko
 from glicko2 import Glicko2
 from elo import Elo
@@ -44,17 +44,20 @@ import matplotlib.pyplot as plt
 # df = df[df.timestamp.dt.year >= 2022]
 # df, date_col, score_col, team1_cols, team2_cols = get_dota2_dataset()
 
-df, date_col, score_col, team1_cols, team2_cols = get_lol_dataset('both')
+# df, date_col, score_col, team1_cols, team2_cols = get_lol_dataset('both')
 # df = df.query('(region=="North America") & (level=="Primary" | level=="Secondary")')
 # df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset()
 # df = df.query('tier == 1 | tier==2')
 # df = df.query('timestamp.dt.year>=2021')
 # df = df.query('type=="offline"')
 
+print('loading data')
+df, date_col, score_col, team1_cols, team2_cols = get_dummy_dataset()
+
 split_method = 'date'
 rating_period = '1D'
 
-split_method = 'minibatch'
+# split_method = 'minibatch'
 batch_size = 5
 
 
@@ -66,11 +69,14 @@ print(f'num players: {num_players}')
 # model = Glicko2(num_players, mode='all_pairs', initial_phi=100, initial_sigma=0.06, tau=0.2, eps=1e-6, adjust_for_base_rate=True)
 # ProjektZero settings
 # model = Glicko2(num_players, mode='aligned', initial_phi=210, initial_sigma=0.038, tau=0.2, eps=1e-6, adjust_for_base_rate=True)
-# model = Glicko2(num_players, mode='1v1', initial_phi=350, initial_sigma=0.06, tau=0.5, eps=1e-6, adjust_for_base_rate=False)
-# model = Glicko(num_players, c=3, initial_RD=350, mode='aligned', adjust_for_base_rate=False)
-# model = Elo(num_players, k=24, mode='1v1', adjust_for_base_rate=False)
+# model = Glicko2(num_players, mode='1v1', initial_phi=350, initial_sigma=0.001, tau=0.5, eps=1e-6, adjust_for_base_rate=False)
+# model = Glicko(num_players, c=0, initial_RD=350, mode='1v1', adjust_for_base_rate=False)
+model = Elo(num_players, k=64, mode='1v1', adjust_for_base_rate=False)
 # model = CountBasedRater(num_players, criterion='winrate', temperature=1.0, adjust_for_base_rate=True)
-model = TrueSkill(num_players, draw_probability=0, decay_inactive=False, initial_sigma=5, tau=0.01)
+
+print('creating model')
+# model = TrueSkill(num_players, draw_probability=0, decay_inactive=False, initial_sigma=5, tau=0.01)
+print('training')
 preds = model.fit_predict(df, team1_cols, team2_cols, score_col, split_method, date_col, rating_period, batch_size)
 model.rank(15)
 # exit(1)
@@ -78,13 +84,13 @@ model.rank(15)
 scores = df[score_col].values
 # print('base rate:', scores.mean())
 
-df['preds'] = preds
-results = segment_metrics(df, 'preds', score_col, segments)
-for key in results.keys():
-    print(key, 'accuracy:', results[key]['accuracy'], results[key]['num'])
+# df['preds'] = preds
+# results = segment_metrics(df, 'preds', score_col, segments)
+# for key in results.keys():
+#     print(key, 'accuracy:', results[key]['accuracy'], results[key]['num'])
 
-# disp = CalibrationDisplay.from_predictions(scores, preds, n_bins=15, strategy='uniform')
-# plt.show()
+disp = CalibrationDisplay.from_predictions(scores, preds, n_bins=15, strategy='uniform')
+plt.show()
 
 # modifier = np.roll((scores.cumsum() + 10) / (np.arange(scores.shape[0]) + 20),1) - 0.5
 # modifier[0] = 0.5
