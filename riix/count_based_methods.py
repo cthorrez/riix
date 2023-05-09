@@ -62,7 +62,7 @@ class CountBasedRater(Rater):
         print(f'{"player": <26}{"win rate": <12}{"wins": <12}games')
         while printed < n:
             i += 1
-            if (self.wins[idxs[i]] == 0) or (self.games[idxs[i]] < 100):
+            if (self.wins[idxs[i]] == 0) or (self.games[idxs[i]] < 10):
                 continue
             out = f'{self.idx_to_player[idxs[i]]: <26}{round(self.wins[idxs[i]] / self.games[idxs[i]],2): <12}{int(self.wins[idxs[i]]): <12}{int(self.games[idxs[i]])}'
             print(out)

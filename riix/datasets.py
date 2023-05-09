@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
 
+def get_dummy_dataset():
+    df = pd.read_csv('dummy_data.csv')
+    df['time'] = pd.to_datetime(df['time'])
+    return df, 'time', 'result', ['player1'], ['player2']
+
 def get_dota2_dataset(mode='both'):
     df = pd.read_csv('../data/dota2_games.csv').drop_duplicates()
     df = df.fillna(0)
