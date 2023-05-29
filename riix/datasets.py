@@ -51,23 +51,24 @@ def get_lol_dataset(mode='both'):
     return df, date_col, score_col, team1_cols, team2_cols
 
 
-def get_melee_dataset():
+def get_melee_dataset(tier=3):
     team1_cols = ['player1.player_id']
     team2_cols = ['player2.player_id']
-    df = pd.read_csv('../data/melee_matches.csv')
+    df = pd.read_csv('../../data/melee_matches_5-28-2023.csv')
     for col in team1_cols + team2_cols:
         df[col] = df[col].astype(str)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df['result'] = df['result'].astype(int)
+    df = df[df['tier'] <= tier]
     date_col = 'timestamp'
     score_col = 'result'
     return df, date_col, score_col, team1_cols, team2_cols
 
 
-def get_sc2_dataset():
+def get_sc2_dataset(path):
     team1_cols = ['player1']
     team2_cols = ['player2']
-    df = pd.read_csv('../data/sc2_matches.csv', low_memory=False).drop_duplicates()
+    df = pd.read_csv(path, low_memory=False).drop_duplicates()
     df['player1'] = df['team1.player1.username'].astype(str) + '_' + df['team1.player1.player_id'].astype(str)
     df['player2'] = df['team2.player1.username'].astype(str) + '_' + df['team2.player1.player_id'].astype(str)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
