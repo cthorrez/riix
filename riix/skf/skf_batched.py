@@ -1,29 +1,32 @@
 import math
 import numpy as np
-from scipy.stats import norm
 import pandas as pd
 from tqdm import tqdm
 
-class Glicko:
+class vSFK:
     def __init__(
         self,
         num_players: int,
         mu_0: float = 0.0,
         v_0: float = 1.0,
-        sigma = 1.0,
+        beta: float = 1.,
+        s: float = 400.,
         epsilon: float = 2e-3
     ):
         self.num_players = num_players
-        self.sigma = sigma
-        self.sigma2 = sigma ** 2.
-        self.a = 3. * math.pow(math.log(10.),2.) / math.pow(math.pi,2.)
         self.mus = np.zeros(num_players, dtype=np.float64) + mu_0
         self.vs = np.zeros(num_players, dtype=np.float64) + v_0
         self.active_mask = np.zeros(num_players, dtype=np.bool_)
         self.pid_to_idx = {}
+        self.beta = beta
+        self.beta2 = beta ** 2.
+        self.s = s
+        self.s2 = s ** 2.
         self.epsilon = epsilon
         self.log10 = math.log(10.)
         self.log10_squared = math.log(10.) ** 2.
+        self.prev_time = None
+
         self.probs = []
 
     @staticmethod
@@ -31,18 +34,14 @@ class Glicko:
         return 1. / (1. + (10. ** -z))
 
     def bradley_terry_prob_g_h(self, z, y):
-        prob = Glicko.F_L(z)
+        prob = vSFK.F_L(z)
         g = self.log10 * (y - prob)
         h = self.log10_squared * prob * (1. - prob)
         return prob, g, h
-
-    def r(self, v):
-        return math.sqrt(1. + (v * self.a / self.sigma2))
-
         
-    def update_players(self, p1_id, p2_id, result):
-        # update variance of the players for passage of time
-
+    
+    def update_players(self, p1_id, p2_id, result, time_delta=0.):
+        # update player activity masks
         if p1_id not in self.pid_to_idx:
             p1_idx = len(self.pid_to_idx)
             self.pid_to_idx[p1_id] = p1_idx
@@ -57,7 +56,10 @@ class Glicko:
         else:
             p2_idx = self.pid_to_idx[p2_id]
 
-        self.vs[self.active_mask] += self.epsilon
+        # update parameters for passage of time
+        beta_t = self.beta ** time_delta
+        self.mus[self.active_mask] = beta_t * self.mus[self.active_mask]
+        self.vs[self.active_mask] = (beta_t ** 2) * self.vs[self.active_mask] + (time_delta * self.epsilon)
 
         mu1 = self.mus[p1_idx]
         v1 = self.vs[p1_idx]
@@ -66,25 +68,20 @@ class Glicko:
         v2 = self.vs[p2_idx]
 
         omega = v1 + v2
+        z = (mu1 - mu2) / self.s
 
-        sigma_tilde_1 = self.sigma * self.r(omega - v1)
-        sigma_tilde_2 = self.sigma * self.r(omega - v2)
+        prob, g, h = self.bradley_terry_prob_g_h(z, result)
 
-        delta = mu1 - mu2
-        z1 = delta / sigma_tilde_1
-        z2 = delta / sigma_tilde_2
+        denom = (self.s2) + h * omega
+        mu_update = (self.s * g) / denom
 
-        prob1, g1, h1 = self.bradley_terry_prob_g_h(z1, result)
-        prob2, g2, h2 = self.bradley_terry_prob_g_h(z2, result)
+        mu1 = mu1 + v1 * mu_update
+        mu2 = mu2 - v2 * mu_update
 
-        sigma2_tilde_1 = sigma_tilde_1 ** 2.
-        sigma2_tilde_2 = sigma_tilde_2 ** 2.
+        v_update = h / denom
 
-        mu1 = mu1 + v1 * ((sigma_tilde_1 * g1) / (sigma2_tilde_1 + v1 * h1))
-        mu2 = mu2 - v2 * ((sigma_tilde_2 * g2) / (sigma2_tilde_2 + v2 * h2))
-
-        v1 = v1 * (sigma2_tilde_1 / (sigma2_tilde_1 + v1 * h1))
-        v2 = v2 * (sigma2_tilde_2 / (sigma2_tilde_2 + v2 * h2))
+        v1 = v1 * (1. - v1 * v_update)
+        v2 = v2 * (1. - v2 * v_update)
 
         self.mus[p1_idx] = mu1
         self.vs[p1_idx] = v1
@@ -92,23 +89,25 @@ class Glicko:
         self.mus[p2_idx] = mu2
         self.vs[p2_idx] = v2
 
-        return prob1
+        return prob
 
-    def play_game(self, p1_id, p2_id, result):
-
-        prob = self.update_players(p1_id, p2_id, result)
+    def play_period(self, p1_ids, p2_ids, results, time_delta):
+        prob = self.update_players(p1_ids, p2_ids, results, time_delta)
         self.probs.append(prob)
 
 
     def run_schedule(self, games):
-        for (p1_id, p2_id, result) in tqdm(games):
-            self.play_game(p1_id, p2_id, result)
+        prev_time = games[0][3]
+        for (p1_id, p2_id, result, time) in tqdm(games):
+            time_delta = time - prev_time
+            self.play_game(p1_id, p2_id, result, time_delta)
+            prev_time = time
         return np.array(self.probs)
 
     def topk(self, k):
         sorted_players = sorted(
             [(id, self.mus[idx], self.vs[idx]) for id, idx in self.pid_to_idx.items()],
-            key=lambda x: x[1] - 2*x[2],
+            key=lambda x: x[1] - 3*x[2],
             reverse=True
         )
         for idx in range(1, k+1):
@@ -119,32 +118,46 @@ class Glicko:
 if __name__ == '__main__':
     from riix.datasets import get_sc2_dataset, get_melee_dataset
 
-    # df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../../data/sc2_matches_5-27-2023.csv')
-    df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
+    df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../data/sc2_matches_5-27-2023.csv')
+    # df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
 
     n = 500000
-    df = df.head(n)[[*team1_cols, *team2_cols, score_col]]
+    df = df.head(n)[[*team1_cols, *team2_cols, score_col, date_col]]
+    df['time'] = (df[date_col] - df.iloc[0][date_col]).dt.days
+    df = df.drop(date_col, axis=1)
+    # df['time'] = np.arange(len(df))
+
     num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
     print(f'{num_players} unique players')
     games = list(df.itertuples(index=False, name=None))
-    # print('loaded data')
 
-    # beta = 0.99999
+    # beta = 0.998
     # epsilon = 1 - beta ** 2
 
-    beta = 1.0
-    epsilon = 1e-5
+    beta = 1.000001
+    epsilon = 0.001
 
-    model = Glicko(
+    v_0 = 1.0
+
+    model = vSFK(
         num_players=num_players,
-        mu_0=0.,
-        v_0=1.0,
-        sigma=1.0,
-        epsilon=1e-4
+        mu_0=0.0,
+        v_0=v_0,
+        beta=beta,
+        s=1.0,
+        epsilon=epsilon
     )
     probs = model.run_schedule(games)
-    model.topk(50)
+    model.topk(25)
 
-    acc = ((probs > 0.5) == df[score_col]).mean()
+
+    labels = df[score_col]
+
+    brier_score = np.mean(np.square(probs - labels))
+    log_loss = - np.mean(labels * np.log(probs) + (1-labels) * (np.log(1-probs)))
+
+    acc = ((probs > 0.5) == labels).mean()
     print(f'accuracy: {acc}')
+    print(f'log loss: {log_loss}')
+    print(f'brier score: {brier_score}')
         

@@ -1,5 +1,4 @@
 from math import log, exp, pow
-from turtle import up
 import jax.numpy as jnp
 import jax
 from jax import jacfwd, jacrev, grad

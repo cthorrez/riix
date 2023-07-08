@@ -25,6 +25,7 @@ class vSFK:
         self.epsilon = epsilon
         self.log10 = math.log(10.)
         self.log10_squared = math.log(10.) ** 2.
+        self.prev_time = None
 
         self.probs = []
 
@@ -39,9 +40,8 @@ class vSFK:
         return prob, g, h
         
     
-    def update_players(self, p1_id, p2_id, result):
-        # update variance of the players for passage of time
-
+    def update_players(self, p1_id, p2_id, result, time_delta=0.):
+        # update player activity masks
         if p1_id not in self.pid_to_idx:
             p1_idx = len(self.pid_to_idx)
             self.pid_to_idx[p1_id] = p1_idx
@@ -56,8 +56,10 @@ class vSFK:
         else:
             p2_idx = self.pid_to_idx[p2_id]
 
-        self.mus[self.active_mask] = self.beta * self.mus[self.active_mask]
-        self.vs[self.active_mask] = self.beta2 * self.vs[self.active_mask] + self.epsilon
+        # update parameters for passage of time
+        beta_t = self.beta ** time_delta
+        self.mus[self.active_mask] = beta_t * self.mus[self.active_mask]
+        self.vs[self.active_mask] = (beta_t ** 2) * self.vs[self.active_mask] + (time_delta * self.epsilon)
 
         mu1 = self.mus[p1_idx]
         v1 = self.vs[p1_idx]
@@ -73,8 +75,8 @@ class vSFK:
         denom = (self.s2) + h * omega
         mu_update = (self.s * g) / denom
 
-        mu1 = self.beta * mu1 + v1 * mu_update
-        mu2 = self.beta * mu2 - v2 * mu_update
+        mu1 = mu1 + v1 * mu_update
+        mu2 = mu2 - v2 * mu_update
 
         v_update = h / denom
 
@@ -89,15 +91,17 @@ class vSFK:
 
         return prob
 
-    def play_game(self, p1_id, p2_id, result):
-
-        prob = self.update_players(p1_id, p2_id, result)
+    def play_game(self, p1_id, p2_id, result, time_delta):
+        prob = self.update_players(p1_id, p2_id, result, time_delta)
         self.probs.append(prob)
 
 
     def run_schedule(self, games):
-        for (p1_id, p2_id, result) in tqdm(games):
-            self.play_game(p1_id, p2_id, result)
+        prev_time = games[0][3]
+        for (p1_id, p2_id, result, time) in tqdm(games):
+            time_delta = time - prev_time
+            self.play_game(p1_id, p2_id, result, time_delta)
+            prev_time = time
         return np.array(self.probs)
 
     def topk(self, k):
@@ -114,25 +118,31 @@ class vSFK:
 if __name__ == '__main__':
     from riix.datasets import get_sc2_dataset, get_melee_dataset
 
-    # df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../../data/sc2_matches_5-27-2023.csv')
-    df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
+    df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../data/sc2_matches_5-27-2023.csv')
+    # df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
 
     n = 500000
-    df = df.head(n)[[*team1_cols, *team2_cols, score_col]]
+    df = df.head(n)[[*team1_cols, *team2_cols, score_col, date_col]]
+    df['time'] = (df[date_col] - df.iloc[0][date_col]).dt.days
+    df = df.drop(date_col, axis=1)
+    # df['time'] = np.arange(len(df))
+
     num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
     print(f'{num_players} unique players')
     games = list(df.itertuples(index=False, name=None))
 
-    # beta = 0.99999
+    # beta = 0.998
     # epsilon = 1 - beta ** 2
 
-    beta = 1.0
-    epsilon = 1e-5
+    beta = 1.000001
+    epsilon = 0.001
+
+    v_0 = 1.0
 
     model = vSFK(
         num_players=num_players,
-        mu_0=0.,
-        v_0=1.,
+        mu_0=0.0,
+        v_0=v_0,
         beta=beta,
         s=1.0,
         epsilon=epsilon
@@ -140,6 +150,14 @@ if __name__ == '__main__':
     probs = model.run_schedule(games)
     model.topk(25)
 
-    acc = ((probs > 0.5) == df[score_col]).mean()
+
+    labels = df[score_col]
+
+    brier_score = np.mean(np.square(probs - labels))
+    log_loss = - np.mean(labels * np.log(probs) + (1-labels) * (np.log(1-probs)))
+
+    acc = ((probs > 0.5) == labels).mean()
     print(f'accuracy: {acc}')
+    print(f'log loss: {log_loss}')
+    print(f'brier score: {brier_score}')
         

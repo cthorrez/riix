@@ -1,42 +1,40 @@
 import math
 import numpy as np
-from scipy.stats import norm
 import pandas as pd
 from tqdm import tqdm
 
-class TrueSkill:
+class vSFK:
     def __init__(
         self,
         num_players: int,
         mu_0: float = 0.0,
         v_0: float = 1.0,
-        sigma = 1.0,
+        beta: float = 1.,
+        s: float = 400.,
         epsilon: float = 2e-3
     ):
         self.num_players = num_players
-        self.sigma = sigma
-        self.sigma2 = sigma ** 2.
         self.mus = np.zeros(num_players, dtype=np.float64) + mu_0
         self.vs = np.zeros(num_players, dtype=np.float64) + v_0
         self.active_mask = np.zeros(num_players, dtype=np.bool_)
         self.pid_to_idx = {}
+        self.beta = beta
+        self.beta2 = beta ** 2.
+        self.s = s
+        self.s2 = s ** 2.
         self.epsilon = epsilon
+        self.log10 = math.log(10.)
+        self.log10_squared = math.log(10.) ** 2.
         self.probs = []
 
-    def thurstone_prob_g_h(self, z, y):
+    @staticmethod
+    def F_L(z):
+        return 1. / (1. + (10. ** -z))
 
-        sign = (y * 2) - 1 # map 1 -> 1, 0 -> -1
-        sign_z = sign * z
-
-        N = norm.pdf(sign_z)
-        phi = norm.cdf(sign_z)
-
-        prob = (1 - y) + (sign * phi)
-
-        V = N / phi
-        g = sign * V
-
-        h = V * (sign_z + V)
+    def bradley_terry_prob_g_h(self, z, y):
+        prob = vSFK.F_L(z)
+        g = self.log10 * (y - prob)
+        h = self.log10_squared * prob * (1. - prob)
         return prob, g, h
         
     
@@ -57,7 +55,8 @@ class TrueSkill:
         else:
             p2_idx = self.pid_to_idx[p2_id]
 
-        self.vs[self.active_mask] += self.epsilon
+        self.mus[self.active_mask] = self.beta * self.mus[self.active_mask]
+        self.vs[self.active_mask] = self.beta2 * self.vs[self.active_mask] + self.epsilon
 
         mu1 = self.mus[p1_idx]
         v1 = self.vs[p1_idx]
@@ -66,23 +65,20 @@ class TrueSkill:
         v2 = self.vs[p2_idx]
 
         omega = v1 + v2
+        z = (mu1 - mu2) / self.s
 
-        sigma_tilde = self.sigma * math.sqrt(1. + omega / self.sigma2)
+        prob, g, h = self.bradley_terry_prob_g_h(z, result)
 
-        z = (mu1 - mu2) / sigma_tilde
+        denom = (self.s2) + h * omega
+        mu_update = (self.s * g) / denom
 
-        prob, g, h = self.thurstone_prob_g_h(z, result)
+        mu1 = self.beta * mu1 + v1 * mu_update
+        mu2 = self.beta * mu2 - v2 * mu_update
 
-        mu1 = mu1 + v1 * g / sigma_tilde
-        mu2 = mu2 - v2 * g / sigma_tilde
-
-        v_update = h / (self.sigma2 + omega)
+        v_update = h / denom
 
         v1 = v1 * (1. - v1 * v_update)
         v2 = v2 * (1. - v2 * v_update)
-
-        if v1 < 0 or v2 < 0:
-            print(p1_id, v1, p2_id, v2)
 
         self.mus[p1_idx] = mu1
         self.vs[p1_idx] = v1
@@ -117,15 +113,14 @@ class TrueSkill:
 if __name__ == '__main__':
     from riix.datasets import get_sc2_dataset, get_melee_dataset
 
-    # df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../../data/sc2_matches_5-27-2023.csv')
-    df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
+    df, date_col, score_col, team1_cols, team2_cols = get_sc2_dataset(path='../data/sc2_matches_5-27-2023.csv')
+    # df, date_col, score_col, team1_cols, team2_cols = get_melee_dataset(tier=1)
 
     n = 500000
     df = df.head(n)[[*team1_cols, *team2_cols, score_col]]
     num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
     print(f'{num_players} unique players')
     games = list(df.itertuples(index=False, name=None))
-    # print('loaded data')
 
     # beta = 0.99999
     # epsilon = 1 - beta ** 2
@@ -133,12 +128,13 @@ if __name__ == '__main__':
     beta = 1.0
     epsilon = 1e-5
 
-    model = TrueSkill(
+    model = vSFK(
         num_players=num_players,
         mu_0=0.,
         v_0=1.,
-        sigma=1.,
-        epsilon=1e-5
+        beta=beta,
+        s=1.0,
+        epsilon=epsilon
     )
     probs = model.run_schedule(games)
     model.topk(25)
