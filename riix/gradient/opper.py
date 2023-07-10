@@ -1,80 +1,12 @@
 import math
 import numpy as np
 import pandas as pd
-import jax.numpy as jnp
-import jax
-from jax import jacfwd, jacrev, grad, value_and_grad
-from jax.config import config
-config.update("jax_enable_x64", True)
-config.update('jax_platform_name', 'cpu')
 from tqdm import tqdm
 
-def jax_print(val):
-    if hasattr(val, 'primal'):
-        if hasattr(val.primal, 'primal'):
-            jax_print(val.primal)
-        else:
-            print(val.primal)
-    else:
-        print('hmm')
 
 def sigmoid(x):
-    return 1 / (1 + jnp.exp(-x))
+    return 1. / (1 + math.exp(-x))
 
-def logistic_prob(mus, sigma2s, sigma2_0, label):
-    c = jnp.sqrt(2*sigma2_0 + sigma2s[0] + sigma2s[1])
-    p = sigmoid((mus[0]-mus[1])/(c))
-    p = (p * label) + ((1. - p) * (1 - label)) 
-    return p
-
-def logistic_log_likelihood(mus, sigma2s, sigma2_0, label):
-    p = logistic_prob(mus, sigma2s, sigma2_0, label)
-    loss = jnp.log(p)
-    return loss
-
-# gradient of log loss with respect to mu_1 and mu_2
-logistic_log_likelihood_and_grad_fn = value_and_grad(logistic_log_likelihood, argnums=0)
-
-logistic_hess_fn = jacfwd(jacrev(logistic_log_likelihood, argnums=0))
-
-
-
-# def log_loss_mu_grad_update(mu_w, mu_l, alpha=1.):
-#     grad_fn = grad(log_loss_mu)
-#     gradient = grad_fn(mu_w, mu_l, alpha)
-#     update = -gradient
-#     return update
-
-# def log_loss_mu_hess_update(mu_w, mu_l, alpha=1.0):
-#     grad_fn = grad(log_loss_mu)
-#     hess_fn = grad(grad_fn)
-#     gradient = grad_fn(mu_w, mu_l, alpha=alpha)
-#     hessian = hess_fn(mu_w, mu_l, alpha=alpha)
-#     print('grad mu hess', gradient)
-#     print('hessian mu hess', hessian)
-#     update = -gradient / (hessian / alpha)
-#     return update
-
-# def log_loss_mu_sigma_grad_update(w, l, alpha=1.0):
-#     grad_fn = grad(log_loss_mu_sigma, argnums=(0,1))
-#     gradient = grad_fn(w[0], w[1], l[0], l[1], alpha=alpha)
-#     gradient = jnp.array(gradient)
-#     print('gradient', gradient[1])
-#     update = -gradient
-#     return update
-
-# def log_loss_mu_sigma_hess_update(w, l, alpha=1.0):
-#     grad_fn = grad(log_loss_mu_sigma, argnums=(0,1))
-#     hess_fn = jacrev(grad_fn, argnums=(0,1))
-#     gradient = grad_fn(w[0], w[1], l[0], l[1], alpha=alpha)
-#     gradient = jnp.array(gradient)
-#     print('gradient', gradient)
-#     hessian = hess_fn(w[0], w[1], l[0], l[1], alpha=alpha)
-#     hessian = jnp.array(hessian)
-#     print('hessian', hessian)
-#     print('diag update', gradient/jnp.diag(hessian) / alpha)
-#     update = -jnp.dot(gradient, jnp.linalg.inv(hessian) / alpha)
-#     return update
 
 class Opperate:
     def __init__(
@@ -112,36 +44,25 @@ class Opperate:
         thetas = self.theta[idxs]
         Cs = self.C[idxs]
 
-        log_likelihood, grad = logistic_log_likelihood_and_grad_fn(
-            thetas,
-            Cs,
-            self.sigma2_0,
-            result
-        )
 
-        hess = logistic_hess_fn(
-            thetas,
-            Cs,
-            self.sigma2_0,
-            result
-        )
-
-        prob = jnp.exp(log_likelihood)
+        my_c = math.sqrt(2*self.sigma2_0 + Cs[0] + Cs[1])
+        my_prob = sigmoid((thetas[0] - thetas[1]) / my_c)
         if result == 0:
-            prob = 1. - prob
-        
+            my_grad = -my_prob / my_c
+        if result == 1:
+            my_grad = (1 - my_prob) / my_c
 
-        thetas = thetas + Cs * grad
-        Cs = Cs + jnp.square(Cs) * jnp.diag(hess)
+        my_diag_hess = - my_prob * (1 - my_prob) / (my_c ** 2)
 
-        self.theta[idxs] = thetas
-        self.C[idxs] = Cs
+        self.theta[p1_idx] += Cs[0] * my_grad
+        self.theta[p2_idx] -= Cs[1] * my_grad
+
+        self.C[idxs] += np.square(Cs) * my_diag_hess
 
 
-        return prob
+        return my_prob
 
     def play_game(self, p1_id, p2_id, result):
-
         prob = self.update_players(p1_id, p2_id, result)
         self.probs.append(prob)
 
@@ -151,17 +72,15 @@ class Opperate:
             self.play_game(p1_id, p2_id, result)
         return np.array(self.probs)
     
-
-
     def topk(self, k):
         sorted_players = sorted(
             [(id, self.theta[idx], self.C[idx]) for id, idx in self.pid_to_idx.items()],
-            key=lambda x: x[1] - 3*x[2],
+            key=lambda x: x[1] - 0*x[2],
             reverse=True
         )
         for idx in range(1, k+1):
             row = sorted_players[idx-1]
-            print(f'{idx:<3}{row[0]:<20}{row[1]:.6f}    {math.sqrt(row[2]):.4f}')
+            print(f'{idx:<3}{row[0]:<20}{row[1]/row[2]*math.sqrt(self.sigma2_0):.6f}    {math.sqrt(row[2]):.4f}')
 
 
 if __name__ == '__main__':
@@ -185,12 +104,24 @@ if __name__ == '__main__':
     model = Opperate(
         num_players=num_players,
         theta_0=0.,
-        sigma2_0=1.,
+        sigma2_0=1e-7,
     )
     probs = model.run_schedule(games)
-    acc = ((probs >= 0.5) == df[score_col]).mean()
+    model.topk(10)
+    preds = probs >= 0.5
+    acc = (preds == df[score_col]).mean()
 
-    model.topk(25)
+    model = Opperate(
+        num_players=num_players,
+        theta_0=0.,
+        sigma2_0=1e7,
+    )
+    probs = model.run_schedule(games)
+    preds2 = probs >= 0.5
+
+    print(np.alltrue(preds == preds2))
+
+    model.topk(10)
     print(f'accuracy: {acc}')
     print(f'score mean: {df[score_col].mean()}')
         
