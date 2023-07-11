@@ -7,18 +7,18 @@ from tqdm import tqdm
 class TrueSkill:
     def __init__(
         self,
-        num_players: int,
+        num_competitors: int,
         mu_0: float = 0.0,
         v_0: float = 1.0,
         sigma = 1.0,
         epsilon: float = 2e-3
     ):
-        self.num_players = num_players
+        self.num_competitors = num_competitors
         self.sigma = sigma
         self.sigma2 = sigma ** 2.
-        self.mus = np.zeros(num_players, dtype=np.float64) + mu_0
-        self.vs = np.zeros(num_players, dtype=np.float64) + v_0
-        self.active_mask = np.zeros(num_players, dtype=np.bool_)
+        self.mus = np.zeros(num_competitors, dtype=np.float64) + mu_0
+        self.vs = np.zeros(num_competitors, dtype=np.float64) + v_0
+        self.active_mask = np.zeros(num_competitors, dtype=np.bool_)
         self.pid_to_idx = {}
         self.epsilon = epsilon
         self.probs = []
@@ -99,7 +99,8 @@ class TrueSkill:
 
 
     def run_schedule(self, games):
-        for (p1_id, p2_id, result) in tqdm(games):
+        for row in tqdm(games):
+            p1_id, p2_id, result = row[:3]
             self.play_game(p1_id, p2_id, result)
         return np.array(self.probs)
 
@@ -122,8 +123,8 @@ if __name__ == '__main__':
 
     n = 500000
     df = df.head(n)[[*team1_cols, *team2_cols, score_col]]
-    num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
-    print(f'{num_players} unique players')
+    num_competitors = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
+    print(f'{num_competitors} unique players')
     games = list(df.itertuples(index=False, name=None))
     # print('loaded data')
 
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     epsilon = 1e-5
 
     model = TrueSkill(
-        num_players=num_players,
+        num_competitors=num_competitors,
         mu_0=0.,
         v_0=1.,
         sigma=1.,

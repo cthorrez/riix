@@ -1,11 +1,9 @@
 """
 An implementation of the Elo rating system
-http://www.glicko.net/glicko/glicko.pdf
-http://www.glicko.net/research/glicko.pdf
 """
 
 import math
-import time
+from tqdm import tqdm
 import numpy as np
 from raters import Rater
 from preprocessing import (index_players, 
@@ -57,6 +55,18 @@ class Elo(Rater):
         r_prime = self.rs[active_in_period] + self.k*diffs
         self.rs[active_in_period] = r_prime
         return pred_Es
+    
+
+    def play_game(self, p1_id, p2_id, result):
+        prob = self.update_players(p1_id, p2_id, result)
+        self.probs.append(prob)
+
+
+    def run_schedule(self, games):
+        for row in tqdm(games):
+            p1_id, p2_id, result = row[:3]
+            self.play_game(p1_id, p2_id, result)
+        return np.array(self.probs)
 
     def rank(self, n=5):
         idxs = np.argsort(self.rs)[::-1]
@@ -66,8 +76,70 @@ class Elo(Rater):
             print(out)
 
 
+class EloV2:
+    def __init__(
+        self,
+        num_competitors: int,
+        initial_r=1500.,
+        k=32,
+    ):
+        self.num_competitors = num_competitors
+        self.k = k
+        self.rs = np.zeros(num_competitors, dtype=np.float64) + initial_r
+        self.pid_to_idx = {}
+
+        self.log10 = math.log(10.)
+        self.log10_squared = math.log(10.) ** 2.
+        self.probs = []
 
         
+    def update_players(self, p1_id, p2_id, result):
+        # update variance of the players for passage of time
 
-    
-            
+        if p1_id not in self.pid_to_idx:
+            p1_idx = len(self.pid_to_idx)
+            self.pid_to_idx[p1_id] = p1_idx
+        else:
+            p1_idx = self.pid_to_idx[p1_id]
+
+        if p2_id not in self.pid_to_idx:
+            p2_idx = len(self.pid_to_idx)
+            self.pid_to_idx[p2_id] = p2_idx
+        else:
+            p2_idx = self.pid_to_idx[p2_id]
+
+
+        r1 = self.rs[p1_idx]
+        r2 = self.rs[p2_idx]
+
+        E1 = 1. / (1. + math.exp((r2 - r1) / 400.))
+
+        update = self.k * (result - E1)
+
+        self.rs[p1_idx] += update
+        self.rs[p2_idx] -= update
+
+        return E1
+
+    def play_game(self, p1_id, p2_id, result):
+
+        prob = self.update_players(p1_id, p2_id, result)
+        self.probs.append(prob)
+
+
+    def run_schedule(self, games):
+        for row in tqdm(games):
+            p1_id, p2_id, result = row[:3]
+            self.play_game(p1_id, p2_id, result)
+        return np.array(self.probs)
+
+    def topk(self, k):
+        sorted_players = sorted(
+            [(id, self.rs[idx]) for id, idx in self.pid_to_idx.items()],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        for idx in range(1, k+1):
+            row = sorted_players[idx-1]
+            print(f'{idx:<3}{row[0]:<20}{row[1]:.6f}')
+

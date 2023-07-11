@@ -6,17 +6,19 @@ from tqdm import tqdm
 class vSFK:
     def __init__(
         self,
-        num_players: int,
+        num_competitors: int,
         mu_0: float = 0.0,
         v_0: float = 1.0,
         beta: float = 1.,
-        s: float = 400.,
-        epsilon: float = 2e-3
+        # s: float = 400., # bruh
+        # epsilon: float = 2e-3 # bruh
+        s: float = 1.0,
+        epsilon: float = 1e-4
     ):
-        self.num_players = num_players
-        self.mus = np.zeros(num_players, dtype=np.float64) + mu_0
-        self.vs = np.zeros(num_players, dtype=np.float64) + v_0
-        self.active_mask = np.zeros(num_players, dtype=np.bool_)
+        self.num_competitors = num_competitors
+        self.mus = np.zeros(num_competitors, dtype=np.float64) + mu_0
+        self.vs = np.zeros(num_competitors, dtype=np.float64) + v_0
+        self.active_mask = np.zeros(num_competitors, dtype=np.bool_)
         self.pid_to_idx = {}
         self.beta = beta
         self.beta2 = beta ** 2.
@@ -98,7 +100,8 @@ class vSFK:
 
     def run_schedule(self, games):
         prev_time = games[0][3]
-        for (p1_id, p2_id, result, time) in tqdm(games):
+        for row in tqdm(games):
+            p1_id, p2_id, result, time = row[:4]
             time_delta = time - prev_time
             self.play_game(p1_id, p2_id, result, time_delta)
             prev_time = time
@@ -127,8 +130,8 @@ if __name__ == '__main__':
     df = df.drop(date_col, axis=1)
     # df['time'] = np.arange(len(df))
 
-    num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
-    print(f'{num_players} unique players')
+    num_competitors = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
+    print(f'{num_competitors} unique players')
     games = list(df.itertuples(index=False, name=None))
 
     # beta = 0.998
@@ -140,7 +143,7 @@ if __name__ == '__main__':
     v_0 = 1.0
 
     model = vSFK(
-        num_players=num_players,
+        num_competitors=num_competitors,
         mu_0=0.0,
         v_0=v_0,
         beta=beta,

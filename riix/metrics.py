@@ -8,8 +8,8 @@ def second_half_metric(metric, preds, scores):
     return metric(preds, scores)
 
 def accuracy(preds, scores, thresh=0.5):
-    correct = ((preds > thresh) & scores).sum()
-    correct += ((preds < thresh) & (1-scores)).sum()
+    correct = ((preds > thresh) & scores.astype(np.int64)).sum()
+    correct += ((preds < thresh) & (1-scores.astype(np.int64))).sum()
     correct += 0.5*(preds == thresh).sum()
     return correct / preds.shape[0]
 
@@ -47,10 +47,10 @@ def all_metrics(preds, scores):
         'accuracy' : accuracy(preds, scores),
         'log_loss' : log_loss(preds, scores),
         'brier_score' : brier_score(preds, scores),
-        'second_half_accuracy' : second_half_metric(accuracy, preds, scores),
-        'second_half_log_loss' : second_half_metric(log_loss, preds, scores),
-        'second_half_brier_score' : second_half_metric(brier_score, preds, scores),
-        'num' : len(preds)
+        # 'second_half_accuracy' : second_half_metric(accuracy, preds, scores),
+        # 'second_half_log_loss' : second_half_metric(log_loss, preds, scores),
+        # 'second_half_brier_score' : second_half_metric(brier_score, preds, scores),
+        # 'num' : len(preds)
     }
     return metrics
 

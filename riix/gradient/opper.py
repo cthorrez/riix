@@ -11,15 +11,15 @@ def sigmoid(x):
 class Opperate:
     def __init__(
         self,
-        num_players: int,
+        num_competitors: int,
         theta_0: float = 0.0,
         sigma2_0: float = 1.0,
     ):
-        self.num_players = num_players
+        self.num_competitors = num_competitors
         self.sigma2_0 = sigma2_0
-        self.theta = np.zeros(num_players, dtype=np.float64) + theta_0
-        self.C = np.zeros((num_players, ), dtype=np.float64) + sigma2_0
-        self.active_mask = np.zeros(num_players, dtype=np.bool_)
+        self.theta = np.zeros(num_competitors, dtype=np.float64) + theta_0
+        self.C = np.zeros((num_competitors, ), dtype=np.float64) + sigma2_0
+        self.active_mask = np.zeros(num_competitors, dtype=np.bool_)
         self.pid_to_idx = {}
         self.probs = []
 
@@ -49,8 +49,10 @@ class Opperate:
         my_prob = sigmoid((thetas[0] - thetas[1]) / my_c)
         if result == 0:
             my_grad = -my_prob / my_c
-        if result == 1:
+        elif result == 1:
             my_grad = (1 - my_prob) / my_c
+        else:
+            print(result)
 
         my_diag_hess = - my_prob * (1 - my_prob) / (my_c ** 2)
 
@@ -68,19 +70,20 @@ class Opperate:
 
 
     def run_schedule(self, games):
-        for (p1_id, p2_id, result) in tqdm(games):
+        for row in tqdm(games):
+            p1_id, p2_id, result = row[:3]
             self.play_game(p1_id, p2_id, result)
         return np.array(self.probs)
     
     def topk(self, k):
         sorted_players = sorted(
             [(id, self.theta[idx], self.C[idx]) for id, idx in self.pid_to_idx.items()],
-            key=lambda x: x[1] - 0*x[2],
+            key=lambda x: x[1] - 3*x[2],
             reverse=True
         )
         for idx in range(1, k+1):
             row = sorted_players[idx-1]
-            print(f'{idx:<3}{row[0]:<20}{row[1]/row[2]*math.sqrt(self.sigma2_0):.6f}    {math.sqrt(row[2]):.4f}')
+            print(f'{idx:<3}{row[0]:<20}{row[1]:.6f}    {math.sqrt(row[2]):.4f}')
 
 
 if __name__ == '__main__':
@@ -91,8 +94,8 @@ if __name__ == '__main__':
 
     n = 500000
     df = df.head(n)[[*team1_cols, *team2_cols, score_col]]
-    num_players = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
-    print(f'{num_players} unique players')
+    num_competitors = len(pd.unique(df[[*team1_cols, *team2_cols]].values.ravel('K')))
+    print(f'{num_competitors} unique players')
     games = list(df.itertuples(index=False, name=None))
 
     # beta = 0.99999
@@ -102,7 +105,7 @@ if __name__ == '__main__':
     epsilon = 1e-5
 
     model = Opperate(
-        num_players=num_players,
+        num_competitors=num_competitors,
         theta_0=0.,
         sigma2_0=1e-7,
     )
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     acc = (preds == df[score_col]).mean()
 
     model = Opperate(
-        num_players=num_players,
+        num_competitors=num_competitors,
         theta_0=0.,
         sigma2_0=1e7,
     )
