@@ -49,8 +49,5 @@ class RatingDataset:
             period_start_idx = period_end_idx
             yield time_step, matchups, outcomes
 
-            g = 2*4*9 -    8 +999 - 0.
-            print(g)
-
     def __len__(self):
         return len(self.matchups)
