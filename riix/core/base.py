@@ -2,6 +2,7 @@
 from abc import ABC
 import numpy as np
 
+
 class OnlineRatingSystem(ABC):
     """base class for online rating systems"""
 

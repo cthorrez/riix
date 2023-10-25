@@ -3,34 +3,36 @@ from typing import List
 import numpy as np
 import pandas as pd
 
+
 class RatingDataset:
     """class for loading and iterating over paired comparison data"""
+
     def __init__(
         self,
-        df:pd.DataFrame,
-        competitor_cols:List[str],
-        outcome_col:str,
-        datetime_col:str,
-        rating_period:str='1W'
+        df: pd.DataFrame,
+        competitor_cols: List[str],
+        outcome_col: str,
+        datetime_col: str,
+        rating_period: str = '1W',
     ):
         if len(competitor_cols) != 2:
             raise ValueError('must specify exactly 2 competitor columns')
 
         # get integer time_steps starting from 0 and increasing one per rating period
-        epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10 ** 9
+        epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
         first_time = epoch_times[0]
         epoch_times = epoch_times - first_time
         period_delta = int(pd.Timedelta(rating_period).total_seconds())
         self.time_steps = epoch_times // period_delta
         _, self.time_step_idxs = np.unique(self.time_steps, return_index=True)
 
-        del epoch_times, first_time, period_delta # free up memory before moving on
+        del epoch_times, first_time, period_delta  # free up memory before moving on
 
         # map competitor names/ids to integers
         self.idx_to_competitor = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
         self.num_competitors = len(self.idx_to_competitor)
-        competitor_to_idx = {comp : idx for idx,comp in enumerate(self.idx_to_competitor)}
-        self.matchups = df[competitor_cols].map(lambda comp : competitor_to_idx[str(comp)]).values.astype(np.int64)
+        competitor_to_idx = {comp: idx for idx, comp in enumerate(self.idx_to_competitor)}
+        self.matchups = df[competitor_cols].map(lambda comp: competitor_to_idx[str(comp)]).values.astype(np.int64)
         self.outcomes = df[outcome_col].values.astype(np.float64)
 
         print('loaded dataset with:')
@@ -47,6 +49,7 @@ class RatingDataset:
             period_start_idx = period_end_idx
             yield time_step, matchups, outcomes
 
+            g = 2*4*9
+
     def __len__(self):
         return len(self.matchups)
-
