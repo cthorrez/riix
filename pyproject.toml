@@ -5,3 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "riix"
 version = "0.0.1"
+description = "vectorized implementations of online rating systems"
+authors = [
+    {name="Clayton Thorrez", email="claytonthorrez@gmail.com"},
+]
+dependencies = [
+    "numpy",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "single"

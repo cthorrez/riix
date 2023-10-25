@@ -28,6 +28,7 @@ class RatingDataset:
 
         # map competitor names/ids to integers
         self.idx_to_competitor = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
+        self.num_competitors = len(self.idx_to_competitor)
         competitor_to_idx = {comp : idx for idx,comp in enumerate(self.idx_to_competitor)}
         self.matchups = df[competitor_cols].map(lambda comp : competitor_to_idx[str(comp)]).values.astype(np.int64)
         self.outcomes = df[outcome_col].values.astype(np.float64)
@@ -45,4 +46,7 @@ class RatingDataset:
             outcomes = self.outcomes[period_start_idx:period_end_idx]
             period_start_idx = period_end_idx
             yield time_step, matchups, outcomes
+
+    def __len__(self):
+        return len(self.matchups)
 
