@@ -24,3 +24,18 @@ def binary_log_loss(probs: np.ndarray, outcomes: np.ndarray) -> float:
     """compute log loss where outcome is binary 1.0 or 0.0"""
     loss_array = (np.log(probs) * outcomes) + (np.log(1.0 - probs) * (1.0 - outcomes))
     return loss_array.mean()
+
+
+def brier_score(probs: np.ndarray, outcomes: np.ndarray) -> float:
+    """compute the brier score, which is equivalent to the MSE"""
+    return np.power(outcomes - probs, 2.0).mean()
+
+
+def binary_metrics_suite(probs: np.ndarray, outcomes: np.ndarray):
+    """a wrapper class for running a bunch of binary metrics"""
+    metrics = {
+        'accuracy': binary_accuracy(probs, outcomes),
+        'log_loss': binary_log_loss(probs, outcomes),
+        'brier_score': brier_score(probs, outcomes),
+    }
+    return metrics
