@@ -23,7 +23,7 @@ def accuracy_with_draws(probs: np.ndarray, outcomes: np.ndarray, draw_margin=0.0
 def binary_log_loss(probs: np.ndarray, outcomes: np.ndarray, eps: float = 1e-6) -> float:
     """compute log loss where outcome is binary 1.0 or 0.0"""
     probs = np.clip(probs, eps, 1 - eps)
-    loss_array = (np.log(probs) * outcomes) + (np.log(1.0 - probs) * (1.0 - outcomes))
+    loss_array = -(np.log(probs) * outcomes) - (np.log(1.0 - probs) * (1.0 - outcomes))
     return loss_array.mean()
 
 
