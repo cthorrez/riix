@@ -16,7 +16,7 @@ def accuracy_with_draws(probs: np.ndarray, outcomes: np.ndarray, draw_margin=0.0
     draw_pred_mask = np.abs(probs - draw_margin) <= draw_margin
     correct = outcomes[pos_pred_mask].sum()
     correct += (1.0 - outcomes)[neg_pred_mask].sum()
-    correct += 2 * outcomes(draw_pred_mask).sum()  # lmao
+    correct += 2 * outcomes[draw_pred_mask].sum()  # lmao
     return correct / outcomes.shape[0]
 
 
@@ -29,7 +29,7 @@ def binary_log_loss(probs: np.ndarray, outcomes: np.ndarray, eps: float = 1e-6) 
 
 def brier_score(probs: np.ndarray, outcomes: np.ndarray) -> float:
     """compute the brier score, which is equivalent to the MSE"""
-    return np.power(outcomes - probs, 2.0).mean()
+    return np.square(probs - outcomes).mean()
 
 
 def binary_metrics_suite(probs: np.ndarray, outcomes: np.ndarray):
