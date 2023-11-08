@@ -20,10 +20,11 @@ class Elo(OnlineRatingSystem):
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
 
-    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
+    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+        """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
-        probs = sigmoid(self.alpha * (ratings_2 - ratings_1))
+        probs = sigmoid(self.alpha * (ratings_1 - ratings_2))
         if set_cache:
             self.cache['probs'] = probs
         return probs
@@ -34,17 +35,32 @@ class Elo(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'batch',
+        update_method: str = 'batched',
     ):
+        if update_method == 'batched':
+            self.batched_update(matchups, outcomes, use_cache)
+        elif update_method == 'iterative':
+            self.iterative_update(matchups, outcomes)
+
+    def batched_update(self, matchups, outcomes, use_cache):
+        """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
-
         if use_cache:
             probs = self.cache['probs']
         else:
-            probs = self.predict(matchups, set_cache=False)
-
-        per_match_diff = outcomes - probs
+            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
+        per_match_diff = (outcomes - probs)[:, None]
         per_match_diff = np.hstack([per_match_diff, -per_match_diff])
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
         self.ratings[active_in_period] += self.k * per_competitor_diff
+
+    def iterative_update(self, matchups, outcomes):
+        """treat the matchups in the rating period as if they were sequential"""
+        for idx in range(matchups.shape[0]):
+            comp_1, comp_2 = matchups[idx]
+            diff = self.ratings[comp_1] - self.ratings[comp_2]
+            prob = sigmoid(self.alpha * diff)
+            update = self.k * (outcomes[idx] - prob)
+            self.ratings[comp_1] += update
+            self.ratings[comp_2] -= update
