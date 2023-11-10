@@ -24,7 +24,7 @@ class Glicko(OnlineRatingSystem):
         num_competitors: int,
         initial_rating: float = 1500.0,
         initial_rating_dev: float = 350.0,
-        c: float = 63.2,
+        c: float = 63.0,
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -51,7 +51,7 @@ class Glicko(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
     ):
         if update_method == 'batched':
             self.batched_update(matchups, outcomes, use_cache)
@@ -59,6 +59,7 @@ class Glicko(OnlineRatingSystem):
             self.iterative_update(matchups, outcomes)
 
     def increase_rating_dev(self, matchups):
+        """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
         self.rating_devs[self.has_played] = np.minimum(
@@ -77,14 +78,14 @@ class Glicko(OnlineRatingSystem):
         probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
 
-        tmp = np.stack([probs_1 * (1 - probs_1), probs_2 * (1 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
-        d2 = 1 / ((tmp[:, :, None] * masks).sum(axis=(0, 1)) * Q2)
+        tmp = np.stack([probs_1 * (1.0 - probs_1), probs_2 * (1.0 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
+        d2 = 1.0 / ((tmp[:, :, None] * masks).sum(axis=(0, 1)) * Q2)
 
         outcomes = np.hstack([outcomes[:, None], 1.0 - outcomes[:, None]])
         probs = np.hstack([probs_1[:, None], probs_2[:, None]])
 
         r_num = Q * ((g_rating_devs[:, [1, 0]] * (outcomes - probs))[:, :, None] * masks).sum(axis=(0, 1))
-        r_denom = (1 / np.square(self.rating_devs[active_in_period])) + (1 / d2)
+        r_denom = (1.0 / np.square(self.rating_devs[active_in_period])) + (1.0 / d2)
 
         self.ratings[active_in_period] += r_num / r_denom
         self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
@@ -96,6 +97,16 @@ class Glicko(OnlineRatingSystem):
             comp_1, comp_2 = matchups[idx]
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
             g_rating_devs = g(self.rating_devs[matchups[idx]])
+            g_rating_devs_2 = np.square(g_rating_devs)
             prob_1 = sigmoid(Q * g_rating_devs[1] * rating_diff)
             prob_2 = sigmoid(-Q * g_rating_devs[0] * rating_diff)
-            print(prob_1, prob_2)
+            d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * g_rating_devs_2[1])
+            d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * g_rating_devs_2[0])
+            r1_num = Q * g_rating_devs[1] * (outcomes[idx] - prob_1)
+            r2_num = Q * g_rating_devs[0] * (outcomes[idx] - prob_2)
+            r1_denom = (1.0 / (self.rating_devs[comp_1] ** 2.0)) + (1.0 / d2_1)
+            r2_denom = (1.0 / (self.rating_devs[comp_2] ** 2.0)) + (1.0 / d2_2)
+            self.ratings[comp_1] += r1_num / r1_denom
+            self.ratings[comp_2] += r2_num / r2_denom
+            self.rating_devs[comp_1] = math.sqrt(1.0 / r1_denom)
+            self.rating_devs[comp_2] = math.sqrt(1.0 / r2_denom)
