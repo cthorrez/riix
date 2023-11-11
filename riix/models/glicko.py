@@ -24,7 +24,7 @@ class Glicko(OnlineRatingSystem):
         num_competitors: int,
         initial_rating: float = 1500.0,
         initial_rating_dev: float = 350.0,
-        c: float = 63.0,
+        c: float = 63.2,
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -103,7 +103,7 @@ class Glicko(OnlineRatingSystem):
             d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * g_rating_devs_2[1])
             d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * g_rating_devs_2[0])
             r1_num = Q * g_rating_devs[1] * (outcomes[idx] - prob_1)
-            r2_num = Q * g_rating_devs[0] * (outcomes[idx] - prob_2)
+            r2_num = Q * g_rating_devs[0] * (1.0 - outcomes[idx] - prob_2)
             r1_denom = (1.0 / (self.rating_devs[comp_1] ** 2.0)) + (1.0 / d2_1)
             r2_denom = (1.0 / (self.rating_devs[comp_2] ** 2.0)) + (1.0 / d2_2)
             self.ratings[comp_1] += r1_num / r1_denom
