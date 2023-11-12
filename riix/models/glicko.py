@@ -26,6 +26,7 @@ class Glicko(OnlineRatingSystem):
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
         dtype=np.float64,
+        do_weird_prob=False,
     ):
         self.num_competitors = num_competitors
         self.initial_rating_dev = initial_rating_dev
@@ -33,16 +34,22 @@ class Glicko(OnlineRatingSystem):
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         self.rating_devs = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating_dev
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
+        self.do_weird_prob = do_weird_prob
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
-        rating_devs_1 = self.rating_devs[matchups[:, 0]]
-        rating_devs_2 = self.rating_devs[matchups[:, 1]]
-        combined_dev = g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
         rating_diffs = ratings_1 - ratings_2
-        probs = sigmoid(Q * combined_dev * rating_diffs)
+        if self.do_weird_prob:
+            # not sure why they do it this way but it seems to work better than the "real" way
+            # https://github.com/McLeopold/PythonSkills/blob/95559262fbeaabc39cc5d698b93a6e43dc9b5e64/skills/glicko.py#L181
+            probs = 1.0 / (1.0 + np.power(10, -rating_diffs / (2.0 * self.initial_rating_dev)))
+        else:
+            rating_devs_1 = self.rating_devs[matchups[:, 0]]
+            rating_devs_2 = self.rating_devs[matchups[:, 1]]
+            combined_dev = g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
+            probs = sigmoid(Q * combined_dev * rating_diffs)
         return probs
 
     def fit(
@@ -51,7 +58,7 @@ class Glicko(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'iterative',
+        update_method: str = 'batched',
     ):
         if update_method == 'batched':
             self.batched_update(matchups, outcomes, use_cache)
