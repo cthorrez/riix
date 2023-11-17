@@ -16,18 +16,6 @@ def v_and_w(t, eps):
     return v, w
 
 
-def v_and_w_draw(t, eps):
-    """calculate v and w for a win"""
-    diff = t - eps
-    v = norm.pdf(diff) / norm.cdf(diff)
-
-    bad_mask = np.isnan(v) | np.isinf(v)
-    if bad_mask.any():
-        v[bad_mask] = (-1 * (diff))[bad_mask]
-    w = v * (v + diff)
-    return v, w
-
-
 class TrueSkill(OnlineRatingSystem):
     """the og TrueSkill rating system shoutout to Microsoft"""
 
@@ -38,14 +26,15 @@ class TrueSkill(OnlineRatingSystem):
         initial_sigma: float = 8.333,
         beta: float = 4.166,
         tau: float = 0.0833,
-        epsilon: float = 0.0,
+        draw_probability=0.0,
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
         self.beta = beta
         self.two_beta_squared = 2.0 * (beta**2.0)
         self.tau_squared = tau**2.0
-        self.epsilon = epsilon
+
+        self.epsilon = norm.ppf((draw_probability + 1.0) / 2.0) * np.sqrt(2.0) * beta
         self.mus = np.zeros(shape=num_competitors, dtype=dtype) + initial_mu
         self.sigma2s = np.zeros(shape=num_competitors, dtype=dtype) + initial_sigma**2.0
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
