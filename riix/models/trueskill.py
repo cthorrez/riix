@@ -2,9 +2,10 @@
 import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
+from riix.utils.math_utils import norm_pdf, norm_cdf
 
 
-def v_and_w(t, eps):
+def v_and_w_vector(t, eps):
     """calculate v and w for a win"""
     diff = t - eps
     v = norm.pdf(diff) / norm.cdf(diff)
@@ -12,6 +13,16 @@ def v_and_w(t, eps):
     bad_mask = np.isnan(v) | np.isinf(v)
     if bad_mask.any():
         v[bad_mask] = (-1 * (diff))[bad_mask]
+    w = v * (v + diff)
+    return v, w
+
+
+def v_and_w_scalar(t, eps):
+    diff = t - eps
+    try:
+        v = norm_pdf(diff) / norm_cdf(diff)
+    except ZeroDivisionError:
+        v = -diff
     w = v * (v + diff)
     return v, w
 
@@ -95,7 +106,7 @@ class TrueSkill(OnlineRatingSystem):
         outcome_multiplier = outcomes.copy()
         outcome_multiplier[outcome_multiplier == 0] = -1.0
 
-        vs, ws = v_and_w(norm_diffs * outcome_multiplier, self.epsilon / combined_devs)
+        vs, ws = v_and_w_vector(norm_diffs * outcome_multiplier, self.epsilon / combined_devs)
 
         mu_updates = vs[:, None] * (sigma2s / combined_devs[:, None])
 
@@ -124,7 +135,7 @@ class TrueSkill(OnlineRatingSystem):
 
             outcome = outcomes[idx]
             outcome_multiplier = outcome if outcome else -1.0
-            v, w = v_and_w(norm_diff * outcome_multiplier, self.epsilon / combined_dev)
+            v, w = v_and_w_scalar(norm_diff * outcome_multiplier, self.epsilon / combined_dev)
 
             sign_multiplier = 1.0 if outcome == 1 else -1
             mu_updates = (sigma2s / combined_dev) * v * sign_multiplier
