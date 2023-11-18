@@ -26,6 +26,7 @@ class Glicko(OnlineRatingSystem):
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
         dtype=np.float64,
+        update_method='batched',
         do_weird_prob=False,
     ):
         self.num_competitors = num_competitors
@@ -35,6 +36,11 @@ class Glicko(OnlineRatingSystem):
         self.rating_devs = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating_dev
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
         self.do_weird_prob = do_weird_prob
+
+        if update_method == 'batched':
+            self.update_function = self.batched_update
+        elif update_method == 'iterative':
+            self.update_function = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -58,12 +64,8 @@ class Glicko(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'batched',
     ):
-        if update_method == 'batched':
-            self.batched_update(matchups, outcomes, use_cache)
-        elif update_method == 'iterative':
-            self.iterative_update(matchups, outcomes)
+        self.update_function(matchups, outcomes, use_cache=use_cache)
 
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""
@@ -97,7 +99,7 @@ class Glicko(OnlineRatingSystem):
         self.ratings[active_in_period] += r_num / r_denom
         self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
 
-    def iterative_update(self, matchups, outcomes):
+    def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
