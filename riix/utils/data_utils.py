@@ -24,7 +24,8 @@ class RatingDataset:
         epoch_times = epoch_times - first_time
         period_delta = int(pd.Timedelta(rating_period).total_seconds())
         self.time_steps = epoch_times // period_delta
-        _, self.time_step_idxs = np.unique(self.time_steps, return_index=True)
+        _, start_time_step_idxs = np.unique(self.time_steps, return_index=True)
+        self.end_time_step_idxs = np.append(start_time_step_idxs[1:], self.time_steps.shape[0])
 
         del epoch_times, first_time, period_delta  # free up memory before moving on
 
@@ -42,7 +43,7 @@ class RatingDataset:
 
     def __iter__(self):
         period_start_idx = 0
-        for period_end_idx in self.time_step_idxs[1:-1]:
+        for period_end_idx in self.end_time_step_idxs:
             time_step = self.time_steps[period_start_idx]
             matchups = self.matchups[period_start_idx:period_end_idx]
             outcomes = self.outcomes[period_start_idx:period_end_idx]
@@ -50,4 +51,4 @@ class RatingDataset:
             yield time_step, matchups, outcomes
 
     def __len__(self):
-        return len(self.matchups)
+        return self.matchups.shape[0]
