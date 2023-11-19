@@ -82,7 +82,8 @@ class TrueSkill(OnlineRatingSystem):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
-        self.sigma2s[self.has_played] += self.tau_squared
+        self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
+        # self.sigma2s[self.has_played] += self.tau_squared  # increase car for ALL players
         return active_in_period
 
     def batched_update(self, matchups, outcomes, use_cache=False):
@@ -123,9 +124,9 @@ class TrueSkill(OnlineRatingSystem):
 
     def iterative_update(self, matchups, outcomes):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
+            self.sigma2s[matchups[idx]] += self.tau_squared
             rating_diff = self.mus[comp_1] - self.mus[comp_2]
             sigma2s = self.sigma2s[matchups[idx]]
 
