@@ -1,12 +1,12 @@
 """math utility functions for rating systems"""
 import math
 import statistics
-import numpy as np
+from scipy.special import expit
 
 
 def sigmoid(x):
-    """cmon if you're reading this you already know what a sigmoid is"""
-    return 1.0 / (1.0 + np.exp(-x))
+    """a little faster than implementing it in numpy for d < 100000"""
+    return expit(x)
 
 
 INV_SQRT_2 = 1.0 / math.sqrt(2.0)
