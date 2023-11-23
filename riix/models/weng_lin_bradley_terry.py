@@ -15,7 +15,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         beta: float = 4.166,
         kappa: float = 0.0001,
         tau: float = 0.0833,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -31,6 +31,8 @@ class WengLinBradleyTerry(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update_fn = self.batched_update
+        elif update_method == 'iterative':
+            self.update_fn = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -76,7 +78,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         deltas = (sigma2s / combined_devs) * (outcomes - probs)
 
         gammas = np.sqrt(sigma2s) / combined_devs
-        etas = gammas * (sigma2s / combined_sigma2s) * (probs - np.square(probs))
+        etas = gammas * (sigma2s / combined_sigma2s) * (probs * (1.0 - probs))
 
         mu_updates = deltas
         sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
@@ -87,6 +89,24 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
 
-    def iterative_update(self, matchups, outcomes):
+    def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        pass
+        self.increase_rating_dev(matchups)
+        for idx in range(matchups.shape[0]):
+            comp_1, comp_2 = matchups[idx]
+            sigma2s = self.sigma2s[matchups[idx]]
+            combined_sigma2s = self.two_beta_squared + sigma2s.sum()
+            combined_devs = np.sqrt(combined_sigma2s)
+            norm_diffs = (self.mus[comp_1] - self.mus[comp_2]) / combined_devs
+            prob = sigmoid(norm_diffs)
+
+            mu_updates = (sigma2s / combined_devs) * (outcomes[idx] - prob)
+
+            gammas = np.sqrt(sigma2s) / combined_devs
+            etas = gammas * (sigma2s / combined_sigma2s) * (prob * (1.0 - prob))
+
+            sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
+
+            self.mus[comp_1] += mu_updates[0]
+            self.mus[comp_2] -= mu_updates[1]
+            self.sigma2s[matchups[idx]] *= sigma2_multipliers
