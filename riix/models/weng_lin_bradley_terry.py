@@ -55,8 +55,8 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
-        self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
-        # self.sigma2s[self.has_played] += self.tau_squared  # increase car for ALL players
+        # self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
+        self.sigma2s[self.has_played] += self.tau_squared  # increase car for ALL players
         return active_in_period
 
     def batched_update(self, matchups, outcomes, use_cache=False):
@@ -70,8 +70,11 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         combined_devs = np.sqrt(combined_sigma2s)
         norm_diffs = (mus[:, 0] - mus[:, 1])[:, None] / combined_devs
         probs = sigmoid(norm_diffs)
+        probs = np.hstack([probs, 1.0 - probs])
 
-        deltas = (sigma2s / combined_devs) * (outcomes[:, None])
+        outcomes = np.hstack([outcomes[:, None], 1.0 - outcomes[:, None]])
+        deltas = (sigma2s / combined_devs) * (outcomes - probs)
+
         gammas = np.sqrt(sigma2s) / combined_devs
         etas = gammas * (sigma2s / combined_sigma2s) * (probs - np.square(probs))
 
