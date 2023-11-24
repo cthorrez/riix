@@ -38,6 +38,7 @@ class TrueSkill(OnlineRatingSystem):
         beta: float = 4.166,
         tau: float = 0.0833,
         draw_probability=0.0,
+        update_method: str = 'batched',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -50,6 +51,10 @@ class TrueSkill(OnlineRatingSystem):
         self.sigma2s = np.zeros(shape=num_competitors, dtype=dtype) + initial_sigma**2.0
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
         self.cache = {'combined_devs': None, 'norm_diffs': None}
+        if update_method == 'batched':
+            self.update_fn = self.batched_update
+        elif update_method == 'iterative':
+            self.update_fn = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -71,12 +76,8 @@ class TrueSkill(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'iterative',
     ):
-        if update_method == 'batched':
-            self.batched_update(matchups, outcomes, use_cache)
-        elif update_method == 'iterative':
-            self.iterative_update(matchups, outcomes)
+        self.update_fn(matchups, outcomes, use_cache=use_cache)
 
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""
@@ -122,7 +123,7 @@ class TrueSkill(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] -= sigma2_updates_pooled
 
-    def iterative_update(self, matchups, outcomes):
+    def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
