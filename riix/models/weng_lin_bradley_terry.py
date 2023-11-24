@@ -58,7 +58,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
         # self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
-        self.sigma2s[self.has_played] += self.tau_squared  # increase car for ALL players
+        self.sigma2s[self.has_played] += self.tau_squared  # increase var for ALL players
         return active_in_period
 
     def batched_update(self, matchups, outcomes, use_cache=False):
@@ -91,10 +91,10 @@ class WengLinBradleyTerry(OnlineRatingSystem):
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             sigma2s = self.sigma2s[matchups[idx]]
+            self.sigma2s[matchups[idx]] += self.tau_squared
             combined_sigma2s = self.two_beta_squared + sigma2s.sum()
             combined_devs = np.sqrt(combined_sigma2s)
             norm_diffs = (self.mus[comp_1] - self.mus[comp_2]) / combined_devs

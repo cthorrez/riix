@@ -83,7 +83,7 @@ class TrueSkill(OnlineRatingSystem):
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
         self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
-        # self.sigma2s[self.has_played] += self.tau_squared  # increase car for ALL players
+        # self.sigma2s[self.has_played] += self.tau_squared  # increase var for ALL players
         return active_in_period
 
     def batched_update(self, matchups, outcomes, use_cache=False):
