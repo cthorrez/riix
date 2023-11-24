@@ -15,7 +15,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         beta: float = 4.166,
         kappa: float = 0.0001,
         tau: float = 0.0833,
-        update_method: str = 'iterative',
+        update_method: str = 'batched',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -68,23 +68,23 @@ class WengLinBradleyTerry(OnlineRatingSystem):
 
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
-        combined_sigma2s = (self.two_beta_squared + sigma2s.sum(axis=1))[:, None]
+        combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
         combined_devs = np.sqrt(combined_sigma2s)
-        norm_diffs = (mus[:, 0] - mus[:, 1])[:, None] / combined_devs
+        norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
         probs = sigmoid(norm_diffs)
-        probs = np.hstack([probs, 1.0 - probs])
 
-        outcomes = np.hstack([outcomes[:, None], 1.0 - outcomes[:, None]])
-        deltas = (sigma2s / combined_devs) * (outcomes - probs)
+        mu_updates = (sigma2s / combined_devs[:, None]) * (outcomes - probs)[:, None]
+        mu_updates[:, 1] *= -1.0
 
-        gammas = np.sqrt(sigma2s) / combined_devs
-        etas = gammas * (sigma2s / combined_sigma2s) * (probs * (1.0 - probs))
+        gammas = np.sqrt(sigma2s) / combined_devs[:, None]
+        etas = gammas * (sigma2s / combined_sigma2s[:, None]) * (probs * (1.0 - probs))[:, None]
 
-        mu_updates = deltas
         sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
 
         mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
-        sigma2_multipliers_pooled = np.prod(sigma2_multipliers[:, :, None] * masks, axis=(0, 1))
+        # aggregating by prod does NOT work well empirically, variance decreases way too fast
+        # empirically max works really well
+        sigma2_multipliers_pooled = np.max(sigma2_multipliers[:, :, None] * masks, axis=(0, 1))
 
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
