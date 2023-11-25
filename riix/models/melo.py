@@ -14,7 +14,7 @@ def generate_orthogonal_matrix(d, k):
     matrix = np.zeros((d, k))
 
     # Generate a base pattern
-    base_pattern = np.array([1, -1] * (k // 2) + [1] * (k % 2))
+    base_pattern = np.array([1.0, -1.0] * (k // 2) + [1.0] * (k % 2))
 
     # Fill the first d-1 rows
     for i in range(d - 1):
@@ -33,18 +33,29 @@ class Melo(OnlineRatingSystem):
         self,
         num_competitors: int,
         initial_rating: float = 1500.0,
-        dimension: int = 2,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
-        k: float = 32.0,  # this is the normal elo k factor
+        dimension: int = 1,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
+        eta_r: float = 32.0,  # this is the normal elo k factor
+        eta_c: float = 1.0 / 16.0,
         alpha: float = math.log(10.0) / 400.0,
+        # alpha: float = 1.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
-        self.k = k
+        self.eta_r = eta_r
+        self.eta_c = eta_c
         self.alpha = alpha
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         two_k = 2 * dimension
-        self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T
+        self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 2.0
+
+        # rng = np.random.default_rng(42)
+        # row = rng.uniform(low=-1.0, high=1.0, size=(1,two_k)) / 100.0
+        # row = rng.normal(loc=0.0, scale=0.001, size=(1,two_k))
+        # self.c = np.repeat(row, num_competitors, axis=0)
+        # self.c = np.zeros(shape=(num_competitors, two_k), dtype=dtype)
+        # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
+
         self.omega = np.zeros((two_k, two_k), dtype=np.int32)
         # Set every other off-diagonal element to 1 or -1
         self.omega[np.arange(0, two_k - 1, 2), np.arange(1, two_k, 2)] = 1  # Upper off diagonal
@@ -57,14 +68,26 @@ class Melo(OnlineRatingSystem):
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        c_1 = self.c[matchups[:, 0], :, None]  # [bs, 2k, 1]
-        c_2 = self.c[matchups[:, 1], None, :]  # [bs, 1, 2k]
-        elo_diff = ratings_1 - ratings_2
-        tmp = np.matmul(c_2, self.omega)
-        melo_diff = np.matmul(tmp, c_1)[:, 0, 0]
-        probs = sigmoid((self.alpha * elo_diff) + melo_diff)
+        probs = np.zeros(matchups.shape[0])
+        for idx in range(matchups.shape[0]):
+            comp_1, comp_2 = matchups[idx]
+            elo_diff = self.ratings[comp_1] - self.ratings[comp_2]
+            c_1 = self.c[comp_1]
+            c_2 = self.c[comp_2]
+
+            melo_diff = np.dot(c_1, np.dot(self.omega, c_2)).item()
+            # print(elo_diff, melo_diff)
+            prob = sigmoid(self.alpha * (elo_diff + melo_diff))
+            probs[idx] = prob
+
+        # ratings_1 = self.ratings[matchups[:, 0]]
+        # ratings_2 = self.ratings[matchups[:, 1]]
+        # c_1 = self.c[matchups[:, 0], :, None]  # [bs, 2k, 1]
+        # c_2 = self.c[matchups[:, 1], None, :]  # [bs, 1, 2k]
+        # elo_diff = ratings_1 - ratings_2
+        # tmp = np.matmul(c_2, self.omega)
+        # melo_diff = np.matmul(tmp, c_1)[:, 0, 0]
+        # probs = sigmoid(self.alpha * (elo_diff + melo_diff))
         return probs
 
     def fit(
@@ -84,27 +107,27 @@ class Melo(OnlineRatingSystem):
         per_match_diff = (outcomes - probs)[:, None]
         per_match_diff = np.hstack([per_match_diff, -per_match_diff])
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
-        self.ratings[active_in_period] += self.k * per_competitor_diff
+        self.ratings[active_in_period] += self.eta_r * per_competitor_diff
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             elo_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            c_1 = self.c[comp_1, None].T  # [2k,1]
-            c_2 = self.c[comp_2, None].T  # [2k,1]
+            c_1 = self.c[comp_1]
+            c_2 = self.c[comp_2]
 
-            melo_diff = np.dot(c_1.T, np.dot(self.omega, c_2)).flatten()
-            prob = sigmoid((self.alpha * elo_diff) + melo_diff)
+            melo_diff = np.dot(c_1, np.dot(self.omega, c_2)).item()
+            prob = sigmoid(self.alpha * (elo_diff + melo_diff))
             delta = outcomes[idx] - prob
 
-            rating_update = self.k * delta
+            rating_update = self.eta_r * delta
 
             self.ratings[comp_1] += rating_update
             self.ratings[comp_2] -= rating_update
 
             dp_dc_1 = np.dot(self.omega, c_2).flatten()
-            dp_dc_2 = np.dot(self.omega.T, c_1).flatten()
+            dp_dc_2 = np.dot(self.omega, c_1).flatten()
 
-            self.c[comp_1, :] += delta * dp_dc_1
-            self.c[comp_2, :] += delta * dp_dc_2
+            self.c[comp_1] += self.eta_c * delta * dp_dc_1
+            self.c[comp_2] -= self.eta_c * delta * dp_dc_2
