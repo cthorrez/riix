@@ -33,11 +33,10 @@ class Melo(OnlineRatingSystem):
         self,
         num_competitors: int,
         initial_rating: float = 1500.0,
-        dimension: int = 1,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
+        dimension: int = 2,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
         eta_r: float = 32.0,  # this is the normal elo k factor
-        eta_c: float = 1.0 / 16.0,
+        eta_c: float = 1 / 16.0,
         alpha: float = math.log(10.0) / 400.0,
-        # alpha: float = 1.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
@@ -47,14 +46,14 @@ class Melo(OnlineRatingSystem):
         self.alpha = alpha
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         two_k = 2 * dimension
-        self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 2.0
+        # self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 100.0
 
-        # rng = np.random.default_rng(42)
+        rng = np.random.default_rng(42)
         # row = rng.uniform(low=-1.0, high=1.0, size=(1,two_k)) / 100.0
-        # row = rng.normal(loc=0.0, scale=0.001, size=(1,two_k))
+        # row = rng.normal(loc=0.0, scale=0.1, size=(1,two_k))
         # self.c = np.repeat(row, num_competitors, axis=0)
         # self.c = np.zeros(shape=(num_competitors, two_k), dtype=dtype)
-        # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
+        self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
 
         self.omega = np.zeros((two_k, two_k), dtype=np.int32)
         # Set every other off-diagonal element to 1 or -1
@@ -76,7 +75,6 @@ class Melo(OnlineRatingSystem):
             c_2 = self.c[comp_2]
 
             melo_diff = np.dot(c_1, np.dot(self.omega, c_2)).item()
-            # print(elo_diff, melo_diff)
             prob = sigmoid(self.alpha * (elo_diff + melo_diff))
             probs[idx] = prob
 
