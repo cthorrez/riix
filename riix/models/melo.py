@@ -37,7 +37,7 @@ class Melo(OnlineRatingSystem):
         eta_r: float = 32.0,  # this is the normal elo k factor
         eta_c: float = 1 / 16.0,
         alpha: float = math.log(10.0) / 400.0,
-        update_method: str = 'iterative',
+        update_method: str = 'batched',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -67,25 +67,14 @@ class Melo(OnlineRatingSystem):
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
-        probs = np.zeros(matchups.shape[0])
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            elo_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            c_1 = self.c[comp_1]
-            c_2 = self.c[comp_2]
-
-            melo_diff = np.dot(c_1, np.dot(self.omega, c_2)).item()
-            prob = sigmoid(self.alpha * (elo_diff + melo_diff))
-            probs[idx] = prob
-
-        # ratings_1 = self.ratings[matchups[:, 0]]
-        # ratings_2 = self.ratings[matchups[:, 1]]
-        # c_1 = self.c[matchups[:, 0], :, None]  # [bs, 2k, 1]
-        # c_2 = self.c[matchups[:, 1], None, :]  # [bs, 1, 2k]
-        # elo_diff = ratings_1 - ratings_2
-        # tmp = np.matmul(c_2, self.omega)
-        # melo_diff = np.matmul(tmp, c_1)[:, 0, 0]
-        # probs = sigmoid(self.alpha * (elo_diff + melo_diff))
+        ratings_1 = self.ratings[matchups[:, 0]]
+        ratings_2 = self.ratings[matchups[:, 1]]
+        c_1 = self.c[matchups[:, 0], None, :]  # [bs, 1, 2k]
+        c_2 = self.c[matchups[:, 1], :, None]  # [bs, 2k, 1]
+        elo_diff = ratings_1 - ratings_2
+        tmp = np.matmul(c_1, self.omega)
+        melo_diff = np.matmul(tmp, c_2)[:, 0, 0]
+        probs = sigmoid(self.alpha * (elo_diff + melo_diff))
         return probs
 
     def fit(
@@ -105,7 +94,18 @@ class Melo(OnlineRatingSystem):
         per_match_diff = (outcomes - probs)[:, None]
         per_match_diff = np.hstack([per_match_diff, -per_match_diff])
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
+
+        c_1 = self.c[matchups[:, 0], :]  # [bs, 2k]
+        c_2 = self.c[matchups[:, 1], :]  # [bs, 2k]
+
+        dp_dc_1 = np.matmul(c_2, self.omega)
+        dp_dc_2 = np.matmul(c_1, self.omega)
+        dp_dc = np.stack([dp_dc_1, -dp_dc_2], axis=1)
+        c_updates = self.eta_c * per_match_diff[:, :, None] * dp_dc
+        c_updates_pooled = (c_updates[:, :, None] * masks[:, :, :, None]).sum(axis=(0, 1))
+
         self.ratings[active_in_period] += self.eta_r * per_competitor_diff
+        self.c[active_in_period] += c_updates_pooled
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
