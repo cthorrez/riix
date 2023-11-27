@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_w_draw_vector
+from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_w_draw_vector, v_and_w_draw_scalar
 
 
 class TrueSkill(OnlineRatingSystem):
@@ -16,7 +16,7 @@ class TrueSkill(OnlineRatingSystem):
         beta: float = 4.166,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -127,9 +127,12 @@ class TrueSkill(OnlineRatingSystem):
 
             outcome = outcomes[idx]
             outcome_multiplier = outcome if outcome else -1.0
-            v, w = v_and_w_win_scalar(norm_diff * outcome_multiplier, self.epsilon / combined_dev)
+            if outcome != 0.5:
+                v, w = v_and_w_win_scalar(norm_diff * outcome_multiplier, self.epsilon / combined_dev)
+            else:
+                v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
 
-            sign_multiplier = 1.0 if outcome == 1 else -1
+            sign_multiplier = 1.0 if outcome else -1
             mu_updates = (sigma2s / combined_dev) * v * sign_multiplier
 
             sigma2_updates = (np.square(sigma2s) / combined_sigma2) * w

@@ -45,6 +45,7 @@ def v_and_w_draw_vector(t, eps):
     diff_a = eps - abs_t
     diff_b = -eps - abs_t
 
+    # TODO maybe this would be faster if I concatenated and put through pdf/cdf together?
     pdf_a = norm.pdf(diff_a)
     pdf_b = norm.pdf(diff_b)
     cdf_a = norm.cdf(diff_a)
@@ -77,4 +78,30 @@ def v_and_w_win_scalar(t, eps):
     except ZeroDivisionError:
         v = -diff
     w = v * (v + diff)
+    return v, w
+
+
+def v_and_w_draw_scalar(t, eps):
+    """calculate v and w for a draw in a scalar fashion"""
+    abs_t = math.fabs(t)  # the papers do NOT do this but ALL open source implementations DO...
+    diff_a = eps - abs_t
+    diff_b = -eps - abs_t
+
+    cdf_a = norm_cdf(diff_a)
+    cdf_b = norm_cdf(diff_b)
+
+    pdf_a = norm_pdf(diff_a)
+    pdf_b = norm_pdf(diff_b)
+    v_num = pdf_a - pdf_b
+    shared_denom = cdf_a - cdf_b
+    sign = math.copysign(1.0, t)
+    if shared_denom < 1e-5:
+        v = -t + (sign * eps)
+    else:
+        v = sign * v_num / shared_denom
+    if shared_denom < 1e-50:
+        w = 1.0
+    else:
+        w_num = (diff_a * pdf_a) - (diff_b * pdf_b)
+        w = math.copysign(1.0, t) * (w_num / shared_denom) * (v**2.0)
     return v, w
