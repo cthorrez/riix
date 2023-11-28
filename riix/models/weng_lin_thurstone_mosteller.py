@@ -3,7 +3,7 @@ import math
 import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar
+from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_w_draw_vector, v_and_w_draw_scalar
 
 
 class WengLinThurstoneMosteller(OnlineRatingSystem):
@@ -67,7 +67,44 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
 
     def batched_update(self, matchups, outcomes, use_cache=False):
         """apply one update based on all of the results of the rating period"""
-        pass
+        active_in_period = self.increase_rating_dev(matchups)
+        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
+
+        mus = self.mus[matchups]
+        sigma2s = self.sigma2s[matchups]
+        combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
+        combined_devs = np.sqrt(combined_sigma2s)
+        norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
+        norm_diffs = np.hstack([norm_diffs[:, None], -1.0 * norm_diffs[:, None]])
+
+        outcome_multiplier = np.sign(outcomes - 0.1)
+        outcome_multiplier = np.hstack([outcome_multiplier[:, None], -1.0 * outcome_multiplier[:, None]])
+
+        vs = np.empty_like(norm_diffs)
+        ws = np.empty_like(norm_diffs)
+        win_mask = outcomes != 0.5
+        draw_mask = ~win_mask
+
+        vs[win_mask], ws[win_mask] = v_and_w_win_vector(
+            norm_diffs[win_mask] * outcome_multiplier[win_mask], self.epsilon / combined_devs[win_mask][:, None]
+        )
+        if draw_mask.sum() > 0:
+            vs[draw_mask], ws[draw_mask] = v_and_w_draw_vector(
+                norm_diffs[draw_mask], self.epsilon / combined_devs[draw_mask][:, None]
+            )
+
+        mu_updates = vs * (sigma2s / combined_devs[:, None])
+        mu_updates = mu_updates * outcome_multiplier
+
+        gammas = np.sqrt(sigma2s) / combined_devs[:, None]
+        etas = gammas * (sigma2s * ws) / combined_sigma2s[:, None]
+        sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
+
+        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
+        sigma2_multipliers_pooled = np.max(sigma2_multipliers[:, :, None] * masks, axis=(0, 1))
+
+        self.mus[active_in_period] += mu_updates_pooled
+        self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""

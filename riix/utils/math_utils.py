@@ -30,11 +30,11 @@ def norm_pdf(x):
 def v_and_w_win_vector(t, eps):
     """calculate v and w for a win in a vectorized fashion"""
     diff = t - eps
-    v = norm.pdf(diff) / norm.cdf(diff)
-
-    bad_mask = np.isnan(v) | np.isinf(v)
-    if bad_mask.any():
-        v[bad_mask] = (-1 * (diff))[bad_mask]
+    v = np.empty_like(diff)
+    denom = norm.cdf(diff)
+    bad_mask = denom < 1e-50
+    v[bad_mask] = -1.0 * diff[bad_mask]
+    v[~bad_mask] = norm.pdf(diff[~bad_mask]) / denom[~bad_mask]
     w = v * (v + diff)
     return v, w
 
@@ -57,6 +57,8 @@ def v_and_w_draw_vector(t, eps):
     good_mask = ~bad_mask
 
     v = np.empty_like(t)
+    if eps.shape != t.shape:
+        eps = np.repeat(eps, repeats=2, axis=1)
     v[bad_mask] = -t[bad_mask] + (np.sign(t[bad_mask]) * eps[bad_mask])
     v[good_mask] = v_num[good_mask] / shared_denom[good_mask]
 

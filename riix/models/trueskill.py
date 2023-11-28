@@ -96,14 +96,12 @@ class TrueSkill(OnlineRatingSystem):
             norm_diffs[win_mask] * outcome_multiplier[win_mask], self.epsilon / combined_devs[win_mask]
         )
         vs[draw_mask], ws[draw_mask] = v_and_w_draw_vector(
-            norm_diffs[draw_mask] * outcome_multiplier[draw_mask], self.epsilon / combined_devs[draw_mask]
+            norm_diffs[draw_mask], self.epsilon / combined_devs[draw_mask]
         )
-
-        # vs, ws = v_and_w_win_vector(norm_diffs * outcome_multiplier, self.epsilon / combined_devs)
 
         mu_updates = vs[:, None] * (sigma2s / combined_devs[:, None])
 
-        # map it back?
+        # map it back
         mu_updates[:, 1] *= -1.0
         mu_updates = mu_updates * outcome_multiplier[:, None]
 
