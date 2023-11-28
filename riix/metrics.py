@@ -4,9 +4,12 @@ import numpy as np
 
 
 def binary_accuracy(probs: np.ndarray, outcomes: np.ndarray) -> float:
-    """compute accuracy where outcomes is binary and ties are broken in favor of positive class"""
-    preds = probs >= 0.5
-    return (preds == outcomes).mean()
+    """compute accuracy where outcomes is binary ties count for half"""
+    pos_mask = probs > 0.5
+    neg_mask = probs < 0.5
+    draw_mask = probs == 0.5
+    correct = outcomes[pos_mask].sum() + (1.0 - outcomes[neg_mask]).sum() + 0.5 * draw_mask.sum()
+    return correct / probs.shape[0]
 
 
 def accuracy_with_draws(probs: np.ndarray, outcomes: np.ndarray, draw_margin=0.0) -> float:
