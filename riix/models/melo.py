@@ -35,7 +35,7 @@ class Melo(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         dimension: int = 2,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
         eta_r: float = 32.0,  # this is the normal elo k factor
-        eta_c: float = 1 / 16.0,
+        eta_c: float = 0.125,  # 1 is bad: https://dclaz.github.io/mELO/articles/03_noise.html#simulations-1
         alpha: float = math.log(10.0) / 400.0,
         update_method: str = 'batched',
         dtype=np.float64,
@@ -46,14 +46,10 @@ class Melo(OnlineRatingSystem):
         self.alpha = alpha
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         two_k = 2 * dimension
-        # self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 100.0
+        self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 10.0
 
-        rng = np.random.default_rng(42)
-        # row = rng.uniform(low=-1.0, high=1.0, size=(1,two_k)) / 100.0
-        # row = rng.normal(loc=0.0, scale=0.1, size=(1,two_k))
-        # self.c = np.repeat(row, num_competitors, axis=0)
-        # self.c = np.zeros(shape=(num_competitors, two_k), dtype=dtype)
-        self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
+        # rng = np.random.default_rng(42)
+        # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
 
         self.omega = np.zeros((two_k, two_k), dtype=np.int32)
         # Set every other off-diagonal element to 1 or -1
@@ -65,6 +61,8 @@ class Melo(OnlineRatingSystem):
         if update_method == 'iterative':
             self.update_fn = self.iterative_update
 
+        self.cache = {'probs': None, 'c_1_times_omega': None}
+
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
@@ -72,9 +70,13 @@ class Melo(OnlineRatingSystem):
         c_1 = self.c[matchups[:, 0], None, :]  # [bs, 1, 2k]
         c_2 = self.c[matchups[:, 1], :, None]  # [bs, 2k, 1]
         elo_diff = ratings_1 - ratings_2
-        tmp = np.matmul(c_1, self.omega)
-        melo_diff = np.matmul(tmp, c_2)[:, 0, 0]
+        c_1_times_omega = np.matmul(c_1, self.omega)
+        melo_diff = np.matmul(c_1_times_omega, c_2)[:, 0, 0]
         probs = sigmoid(self.alpha * (elo_diff + melo_diff))
+        if set_cache:
+            self.cache['probs'] = probs
+            self.cache['c_1_times_omega'] = c_1_times_omega.squeeze(axis=1)
+
         return probs
 
     def fit(
@@ -90,17 +92,23 @@ class Melo(OnlineRatingSystem):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
-        probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
-        per_match_diff = (outcomes - probs)[:, None]
-        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
 
         c_1 = self.c[matchups[:, 0], :]  # [bs, 2k]
         c_2 = self.c[matchups[:, 1], :]  # [bs, 2k]
 
+        if use_cache:
+            probs = self.cache['probs']
+            dp_dc_2 = self.cache['c_1_times_omega']
+        else:
+            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
+            dp_dc_2 = np.matmul(c_1, self.omega)
+
+        per_match_diff = (outcomes - probs)[:, None]
+        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
+        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
+
         dp_dc_1 = np.matmul(c_2, self.omega)
-        dp_dc_2 = np.matmul(c_1, self.omega)
-        dp_dc = np.stack([dp_dc_1, -dp_dc_2], axis=1)
+        dp_dc = np.stack([dp_dc_1, -1.0 * dp_dc_2], axis=1)
         c_updates = self.eta_c * per_match_diff[:, :, None] * dp_dc
         c_updates_pooled = (c_updates[:, :, None] * masks[:, :, :, None]).sum(axis=(0, 1))
 
