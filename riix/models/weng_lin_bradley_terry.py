@@ -27,12 +27,17 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         self.mus = np.zeros(shape=num_competitors, dtype=dtype) + initial_mu
         self.sigma2s = np.zeros(shape=num_competitors, dtype=dtype) + initial_sigma**2.0
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
-        self.cache = {'TODO': None}
 
         if update_method == 'batched':
             self.update_fn = self.batched_update
         elif update_method == 'iterative':
             self.update_fn = self.iterative_update
+
+        self.cache = {
+            'combined_sigma2s': None,
+            'combined_devs': None,
+            'probs': None,
+        }
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -42,6 +47,10 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         combined_devs = np.sqrt(combined_sigma2s)
         norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
         probs = sigmoid(norm_diffs)
+        if set_cache:
+            self.cache['combined_sigma2s'] = combined_sigma2s
+            self.cache['combined_devs'] = combined_devs
+            self.cache['probs'] = probs
         return probs
 
     def fit(
@@ -68,10 +77,16 @@ class WengLinBradleyTerry(OnlineRatingSystem):
 
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
-        combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
-        combined_devs = np.sqrt(combined_sigma2s)
-        norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
-        probs = sigmoid(norm_diffs)
+
+        if use_cache:
+            combined_sigma2s = self.cache['combined_sigma2s']
+            combined_devs = self.cache['combined_devs']
+            probs = self.cache['probs']
+        else:
+            combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
+            combined_devs = np.sqrt(combined_sigma2s)
+            norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
+            probs = sigmoid(norm_diffs)
 
         mu_updates = (sigma2s / combined_devs[:, None]) * (outcomes - probs)[:, None]
         mu_updates[:, 1] *= -1.0
