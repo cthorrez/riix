@@ -12,6 +12,7 @@ class Elo(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
+        update_method: str = 'batched',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -19,6 +20,10 @@ class Elo(OnlineRatingSystem):
         self.alpha = alpha
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
+        if update_method == 'batched':
+            self.update_fn = self.batched_update
+        elif update_method == 'iterative':
+            self.update_fn = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -35,12 +40,8 @@ class Elo(OnlineRatingSystem):
         matchups: np.ndarray,
         outcomes: np.ndarray,
         use_cache: bool = False,
-        update_method: str = 'batched',
     ):
-        if update_method == 'batched':
-            self.batched_update(matchups, outcomes, use_cache)
-        elif update_method == 'iterative':
-            self.iterative_update(matchups, outcomes)
+        self.update_fn(matchups, outcomes, use_cache)
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
@@ -55,7 +56,7 @@ class Elo(OnlineRatingSystem):
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
-    def iterative_update(self, matchups, outcomes):
+    def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
