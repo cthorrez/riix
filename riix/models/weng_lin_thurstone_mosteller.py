@@ -18,7 +18,7 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         kappa: float = 0.0001,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'iterative',
+        update_method: str = 'batched',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
@@ -31,12 +31,11 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         self.mus = np.zeros(shape=num_competitors, dtype=dtype) + initial_mu
         self.sigma2s = np.zeros(shape=num_competitors, dtype=dtype) + initial_sigma**2.0
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
-        self.cache = {'TODO': None}
-
         if update_method == 'batched':
             self.update_fn = self.batched_update
         elif update_method == 'iterative':
             self.update_fn = self.iterative_update
+        self.cache = {}
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -45,6 +44,10 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
         combined_devs = np.sqrt(combined_sigma2s)
         norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
+        if set_cache:
+            self.cache['combined_sigma2s'] = combined_sigma2s
+            self.cache['combined_devs'] = combined_devs
+            self.cache['norm_diffs'] = norm_diffs
         probs = norm.cdf(norm_diffs)
         return probs
 
@@ -70,11 +73,17 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         active_in_period = self.increase_rating_dev(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
-        mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
-        combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
-        combined_devs = np.sqrt(combined_sigma2s)
-        norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
+        if use_cache:
+            combined_sigma2s = self.cache['combined_sigma2s']
+            combined_devs = self.cache['combined_devs']
+            norm_diffs = self.cache['norm_diffs']
+        else:
+            mus = self.mus[matchups]
+            combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
+            combined_devs = np.sqrt(combined_sigma2s)
+            norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
+
         norm_diffs = np.hstack([norm_diffs[:, None], -1.0 * norm_diffs[:, None]])
 
         outcome_multiplier = np.sign(outcomes - 0.1)
