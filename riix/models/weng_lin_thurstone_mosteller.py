@@ -18,7 +18,7 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         kappa: float = 0.0001,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
