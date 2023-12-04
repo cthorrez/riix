@@ -41,7 +41,7 @@ class Elo(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache)
+        self.update_fn(matchups, outcomes, use_cache=use_cache)
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
