@@ -1,5 +1,6 @@
 """utils for evaluating rating systems"""
 import time
+from copy import deepcopy
 from itertools import product
 from collections import defaultdict
 import numpy as np
@@ -27,23 +28,25 @@ def evaluate(rater: OnlineRatingSystem, dataset: RatingDataset, cache=True):
 def grid_search(rating_system_class, dataset, params_grid, metric='log_loss', minimize_metric=True):
     """Perform grid search and return the best hyperparameters."""
     best_params = {}
-    best_metric = np.inf if minimize_metric else -np.inf
+    best_metrics = {}
     metric_multiplier = 1.0 if minimize_metric else -1.0
+    best_metric = np.inf
 
     for setting in product(*params_grid.values()):
         current_params = dict(zip(params_grid.keys(), setting))
         rating_system = rating_system_class(num_competitors=dataset.num_competitors, **current_params)
         current_metrics = evaluate(rating_system, dataset)
-        current_metric = current_metrics[metric] * metric_multiplier
+        current_metric = current_metrics[metric]
+        print(current_params)
+        print(current_metrics)
 
         # Compare and update best metric and params
-        if current_metric * metric_multiplier < best_metric * metric_multiplier:
-            best_metric = current_metric
+        if current_metric * metric_multiplier < best_metric:
+            best_metric = current_metric * metric_multiplier
+            best_metrics = deepcopy(current_metrics)
             best_params = current_params
 
-    # Adjust best_metric back to its original scale
-    best_metric *= metric_multiplier
-    return best_params, best_metric
+    return best_params, best_metrics
 
 
 def add_mean_metrics(data_dict):
