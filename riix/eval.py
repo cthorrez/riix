@@ -37,13 +37,45 @@ def grid_search(rating_system_class, dataset, params_grid, metric='log_loss', mi
         rating_system = rating_system_class(num_competitors=dataset.num_competitors, **current_params)
         current_metrics = evaluate(rating_system, dataset)
         current_metric = current_metrics[metric]
-        print(current_params)
-        print(current_metrics)
 
         # Compare and update best metric and params
         if current_metric * metric_multiplier < best_metric:
             best_metric = current_metric * metric_multiplier
             best_metrics = deepcopy(current_metrics)
+            best_params = current_params
+
+    return best_params, best_metrics
+
+
+def multi_dataset_grid_search(rating_system_class, datasets, params_grid, metric='log_loss', minimize_metric=True):
+    """
+    Extends grid_search() to multiple datasets.
+    Uses the mean of the desired metric across datasets for evaluation.
+    """
+    best_params = {}
+    best_metrics = {}
+    metric_multiplier = 1.0 if minimize_metric else -1.0
+    best_metric = np.inf
+
+    for setting in product(*params_grid.values()):
+        current_params = dict(zip(params_grid.keys(), setting))
+        metrics_across_datasets = []
+
+        # Evaluate across all datasets
+        for dataset in datasets:
+            rating_system = rating_system_class(num_competitors=dataset.num_competitors, **current_params)
+            current_metrics = evaluate(rating_system, dataset)
+            metrics_across_datasets.append(current_metrics[metric])
+
+        # Calculate the mean metric across datasets
+        mean_metric = np.mean(metrics_across_datasets)
+        print(current_params)
+        print(mean_metric)
+
+        # Compare and update the best metric and params
+        if mean_metric * metric_multiplier < best_metric:
+            best_metric = mean_metric * metric_multiplier
+            best_metrics = {'mean_' + metric: mean_metric}
             best_params = current_params
 
     return best_params, best_metrics
