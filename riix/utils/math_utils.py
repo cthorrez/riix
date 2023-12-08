@@ -11,6 +11,11 @@ def sigmoid(x):
     return expit(x)
 
 
+def base_10_sigmoid(x):
+    """some methods prefer base 10 unfortunately"""
+    return 1.0 / (1.0 + (10.0**-x))
+
+
 INV_SQRT_2 = 1.0 / math.sqrt(2.0)
 
 
