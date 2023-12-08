@@ -18,7 +18,7 @@ class VSKF(OnlineRatingSystem):
         v_0: float = 1.0,
         beta: float = 1.0,
         s: float = 1.0,
-        epsilon: float = 1e-4,
+        epsilon: float = 1e-3,
         dtype=np.float64,
         update_method='iterative',
     ):
@@ -94,12 +94,9 @@ class VSKF(OnlineRatingSystem):
             denom = (self.s2) + h * omega
             mu_update = (self.s * g) / denom
 
-            mu_1 = mu_1 + v_1 * mu_update
-            mu_2 = mu_2 - v_2 * mu_update
-
             v_update = h / denom
 
             self.mus[comp_1] += v_1 * mu_update
-            self.mus[comp_1] -= v_2 * mu_update
+            self.mus[comp_2] -= v_2 * mu_update
             self.vs[comp_1] *= 1.0 - v_1 * v_update
             self.vs[comp_2] *= 1.0 - v_2 * v_update
