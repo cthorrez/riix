@@ -12,14 +12,21 @@ class RatingDataset:
         df: pd.DataFrame,
         competitor_cols: List[str],
         outcome_col: str,
-        datetime_col: str,
+        datetime_col: str = None,
+        timestamp_col: str = None,
         rating_period: str = '1W',
     ):
         if len(competitor_cols) != 2:
             raise ValueError('must specify exactly 2 competitor columns')
+        if (bool(datetime_col) + bool(timestamp_col)) != 1:
+            raise ValueError('must specify only one of datetime_col and timestamp_col')
 
-        # get integer time_steps starting from 0 and increasing one per rating period
-        epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
+        if datetime_col:
+            # get integer time_steps starting from 0 and increasing one per rating period
+            epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
+        if timestamp_col:
+            epoch_times = df[timestamp_col].values.astype(np.int64)
+
         first_time = epoch_times[0]
         epoch_times = epoch_times - first_time
         period_delta = int(pd.Timedelta(rating_period).total_seconds())

@@ -18,7 +18,7 @@ class VSKF(OnlineRatingSystem):
         v_0: float = 1.0,
         beta: float = 1.0,
         s: float = 1.0,
-        epsilon: float = 1e-3,
+        epsilon: float = 1e-2,
         dtype=np.float64,
         update_method='iterative',
     ):
