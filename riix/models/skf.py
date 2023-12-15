@@ -20,7 +20,7 @@ class VSKF(OnlineRatingSystem):
         s: float = 1.0,
         epsilon: float = 1e-2,
         dtype=np.float64,
-        update_method='iterative',
+        update_method='batched',
     ):
         self.num_competitors = num_competitors
         self.mus = np.zeros(num_competitors, dtype=dtype) + mu_0
@@ -71,7 +71,32 @@ class VSKF(OnlineRatingSystem):
 
     def batched_update(self, time_step, matchups, outcomes, use_cache=False):
         """apply one update based on all of the results of the rating period"""
-        pass
+        active_in_period = self.time_dynamics_update(time_step, matchups)
+        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
+
+        mus = self.mus[matchups]
+        vs = self.vs[matchups]
+
+        omegas = np.sum(vs, axis=1)
+        probs = base_10_sigmoid((mus[:, 0] - mus[:, 1]) / self.s)
+
+        g = LOG10 * (outcomes - probs)
+        h = LOG10_SQUARED * probs * (1.0 - probs)
+
+        denom = (self.s2) + h * omegas
+        mu_updates = (self.s * g) / denom
+        v_updates = h / denom
+
+        mu_updates = mu_updates[:, None].repeat(2, 1)
+        mu_updates[:, 1] *= -1
+
+        v_updates = 1.0 - vs * v_updates[:, None]
+
+        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum(axis=(0, 1))
+        v_updates_pooled = (v_updates[:, :, None] * masks).max(axis=(0, 1))
+
+        self.mus[active_in_period] += self.vs[active_in_period] * mu_updates_pooled
+        self.vs[active_in_period] *= v_updates_pooled
 
     def iterative_update(self, time_step, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
