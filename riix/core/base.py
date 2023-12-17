@@ -1,6 +1,5 @@
 """base class for online rating systems"""
 from abc import ABC
-from typing import List
 import numpy as np
 
 
@@ -16,12 +15,4 @@ class OnlineRatingSystem(ABC):
         raise NotImplementedError
 
     def fit(self, time_step: int, matchups: np.ndarray, outcomes: np.ndarray, use_cache: bool = False):
-        raise NotImplementedError
-
-    @staticmethod
-    def sort_key(left_idx, other_idx):
-        """every rating system must provide a way to sort the competitor ids"""
-        raise NotImplementedError
-
-    def print_topk(self, k: int, idx_to_competitor: List[str]):
         raise NotImplementedError

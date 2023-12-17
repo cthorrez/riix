@@ -20,7 +20,7 @@ class VSKF(OnlineRatingSystem):
         s: float = 1.0,
         epsilon: float = 1e-2,
         dtype=np.float64,
-        update_method='batched',
+        update_method='iterative',
     ):
         self.num_competitors = num_competitors
         self.mus = np.zeros(num_competitors, dtype=dtype) + mu_0
@@ -125,3 +125,10 @@ class VSKF(OnlineRatingSystem):
             self.mus[comp_2] -= v_2 * mu_update
             self.vs[comp_1] *= 1.0 - v_1 * v_update
             self.vs[comp_2] *= 1.0 - v_2 * v_update
+
+    def print_top_k(self, k, competitor_names):
+        sort_array = self.mus - 3.0 * np.sqrt(self.vs)
+        sorted_idxs = np.argsort(-sort_array)[:k]
+        for k_idx in range(k):
+            comp_idx = sorted_idxs[k_idx]
+            print(competitor_names[comp_idx], self.mus[comp_idx], self.vs[comp_idx])
