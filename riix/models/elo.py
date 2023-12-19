@@ -65,3 +65,9 @@ class Elo(OnlineRatingSystem):
             update = self.k * (outcomes[idx] - prob)
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
+
+    def print_top_k(self, k, competitor_names):
+        sorted_idxs = np.argsort(-self.ratings)[:k]
+        for k_idx in range(k):
+            comp_idx = sorted_idxs[k_idx]
+            print(competitor_names[comp_idx], self.ratings[comp_idx])
