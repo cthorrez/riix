@@ -17,6 +17,7 @@ class RatingDataset:
         timestamp_col: str = None,
         rating_period: str = '1W',
         batch_size: int = None,
+        verbose: bool = True,
     ):
         if len(competitor_cols) != 2:
             raise ValueError('must specify exactly 2 competitor columns')
@@ -47,17 +48,20 @@ class RatingDataset:
         self.matchups = df[competitor_cols].map(lambda comp: self.competitor_to_idx[str(comp)]).values.astype(np.int64)
         self.outcomes = df[outcome_col].values.astype(np.float64)
 
-        print('loaded dataset with:')
-        print(f'{self.matchups.shape[0]} matchups')
-        print(f'{len(self.idx_to_competitor)} unique competitors')
+        if verbose:
+            print('loaded dataset with:')
+            print(f'{self.matchups.shape[0]} matchups')
+            print(f'{len(self.idx_to_competitor)} unique competitors')
 
         if batch_size is not None:
             self.iter_fn = self.iter_by_batch
             self.num_batches = math.ceil(len(self) / self.batch_size)
-            print(f'{self.num_batches} batches of length {batch_size}')
+            if verbose:
+                print(f'{self.num_batches} batches of length {batch_size}')
         else:
             self.iter_fn = self.iter_by_rating_period
-            print(f'{np.max(self.time_steps)} rating periods of length {rating_period}')
+            if verbose:
+                print(f'{np.max(self.time_steps)} rating periods of length {rating_period}')
 
     def iter_by_rating_period(self):
         """iterate batches one rating period at a time"""

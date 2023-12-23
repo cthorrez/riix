@@ -26,7 +26,7 @@ class Glicko(OnlineRatingSystem):
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
         dtype=np.float64,
-        update_method='batched',
+        update_method='iterative',
         do_weird_prob=False,
     ):
         self.num_competitors = num_competitors
