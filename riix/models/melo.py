@@ -37,7 +37,7 @@ class Melo(OnlineRatingSystem):
         eta_r: float = 32.0,  # this is the normal elo k factor
         eta_c: float = 0.125,  # 1 is bad: https://dclaz.github.io/mELO/articles/03_noise.html#simulations-1
         alpha: float = math.log(10.0) / 400.0,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors

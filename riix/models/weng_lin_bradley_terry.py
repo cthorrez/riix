@@ -15,7 +15,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         beta: float = 4.166,
         kappa: float = 0.0001,
         tau: float = 0.0833,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors

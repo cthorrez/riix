@@ -12,7 +12,7 @@ class Elo(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
-        update_method: str = 'batched',
+        update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
