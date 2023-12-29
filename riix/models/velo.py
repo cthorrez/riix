@@ -3,7 +3,6 @@ variance incorporated Elo
 Rating of players by Laplace approximation and dynamic modeling
 https://arxiv.org/abs/2310.10386
 """
-import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import sigmoid
@@ -13,11 +12,16 @@ class vElo(OnlineRatingSystem):
     def __init__(
         self,
         num_competitors: int,
-        initial_mu: float = 1500.0,
-        initial_sigma: float = 200.0,
+        # initial_mu: float = 1500.0,
+        # initial_sigma: float = 250.0,
+        # sigma_reduction_factor: float = 1 / 5,  # A in the paper
+        # sigma_lower_bound: float = 100.0,  # B in the paper
+        # b: float = math.log(10.0) / 400.0,
+        initial_mu: float = 0.0,
+        initial_sigma: float = 1.2,
         sigma_reduction_factor: float = 1 / 5,  # A in the paper
-        sigma_lower_bound: float = 100.0,  # B in the paper
-        b: float = math.log(10.0) / 400.0,
+        sigma_lower_bound: float = 0.4,  # B in the paper
+        b: float = 1.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
