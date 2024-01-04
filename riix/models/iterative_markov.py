@@ -6,17 +6,19 @@ import numpy as np
 from riix.core.base import OnlineRatingSystem
 
 
-class Imm(OnlineRatingSystem):
+class IterativeMarkov(OnlineRatingSystem):
     def __init__(
         self,
         num_competitors: int,
         initial_rating: float = 1.0,
         c: float = 0.1,
+        weight_with_prob: bool = False,  # if True this becomes "Linear Elo"
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
         self.c = c
+        self.weight_with_prob = weight_with_prob
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
         if update_method == 'batched':
@@ -55,6 +57,8 @@ class Imm(OnlineRatingSystem):
             r_sum = r_1 + r_2
             prob_1 = r_1 / r_sum
             update = self.c * r_sum * (outcomes[idx] - prob_1)
+            if self.weight_with_prob:
+                update *= prob_1
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
 
