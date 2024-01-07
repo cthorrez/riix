@@ -15,7 +15,9 @@ class EloMentum(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
-        momentum: float = 0.3,
+        momentum: float = 0.2,
+        # momentum = (0.9, 0.99),
+        momentum_type: str = 'nesterov',
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
@@ -24,12 +26,22 @@ class EloMentum(OnlineRatingSystem):
         self.alpha = alpha
         self.momentum = momentum
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+
         self.v = np.zeros(shape=num_competitors, dtype=dtype)
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update_fn = self.batched_update
         elif update_method == 'iterative':
             self.update_fn = self.iterative_update
+
+        if momentum_type == 'nesterov':
+            self.momentum_fn = self.get_nesterov_momentum_update
+        elif momentum_type == 'adam':
+            self.momentum_fn = self.get_adam_update
+            self.mu = np.zeros(shape=num_competitors, dtype=dtype)
+            self.beta1, self.beta2 = momentum
+        else:
+            self.momentum_fn = self.get_momentum_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -48,6 +60,27 @@ class EloMentum(OnlineRatingSystem):
         use_cache: bool = False,
     ):
         self.update_fn(matchups, outcomes, use_cache=use_cache)
+
+    def get_momentum_update(self, idx, g):
+        v = self.v[idx]
+        v_new = (self.momentum * v) + g
+        self.v[idx] = v_new
+        update = self.k * v_new
+        return update
+
+    def get_nesterov_momentum_update(self, idx, g):
+        # from https://cs231n.github.io/neural-networks-3/#sgd
+        # v_prev = v # back this up
+        # v = mu * v - learning_rate * dx # velocity update stays the same
+        # x += -mu * v_prev + (1 + mu) * v # position update changes form
+        v = self.v[idx]
+        v_new = (self.momentum * v) + (self.k * g)
+        update = (self.momentum * v) + ((1.0 + self.momentum) * v_new)
+        self.v[idx] = v_new
+        return update
+
+    def get_adam_update(self, idx, g):
+        pass
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
@@ -68,20 +101,14 @@ class EloMentum(OnlineRatingSystem):
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             diff = self.ratings[comp_1] - self.ratings[comp_2]
-            v_1 = self.v[comp_1]
-            v_2 = self.v[comp_2]
             prob = sigmoid(self.alpha * diff)
-            g_1 = (
-                outcomes[idx] - prob
-            )  # I think technically this is not the gradient because of alpha but it's close enough
+            # I think technically this is not the gradient because of alpha but it's close enough
+            g_1 = outcomes[idx] - prob
             g_2 = -1.0 * g_1
-            v_1_new = (self.momentum * v_1) + g_1
-            v_2_new = (self.momentum * v_2) + g_2
-
-            self.ratings[comp_1] += self.k * v_1_new
-            self.ratings[comp_2] += self.k * v_2_new
-            self.v[comp_1] = v_1_new
-            self.v[comp_2] = v_2_new
+            update_1 = self.momentum_fn(comp_1, g_1)
+            update_2 = self.momentum_fn(comp_2, g_2)
+            self.ratings[comp_1] += update_1
+            self.ratings[comp_2] += update_2
 
     def print_top_k(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
