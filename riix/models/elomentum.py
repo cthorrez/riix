@@ -15,16 +15,18 @@ class EloMentum(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
-        momentum: float = 0.2,
-        # momentum = (0.9, 0.99),
-        momentum_type: str = 'nesterov',
+        # momentum: float = 0.2,
+        momentum=(0.2, 0.99),
+        momentum_type: str = 'adam',
         update_method: str = 'iterative',
+        epsilon: float = 1e-8,
         dtype=np.float64,
     ):
         self.num_competitors = num_competitors
         self.k = k
         self.alpha = alpha
         self.momentum = momentum
+        self.epsilon = epsilon
         self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
 
         self.v = np.zeros(shape=num_competitors, dtype=dtype)
@@ -39,6 +41,7 @@ class EloMentum(OnlineRatingSystem):
         elif momentum_type == 'adam':
             self.momentum_fn = self.get_adam_update
             self.mu = np.zeros(shape=num_competitors, dtype=dtype)
+            self.t = np.zeros(shape=num_competitors, dtype=np.int32)
             self.beta1, self.beta2 = momentum
         else:
             self.momentum_fn = self.get_momentum_update
@@ -80,7 +83,19 @@ class EloMentum(OnlineRatingSystem):
         return update
 
     def get_adam_update(self, idx, g):
-        pass
+        mu = self.mu[idx]
+        v = self.v[idx]
+        t = self.t[idx]
+        t += 1.0
+        mu_new = (self.beta1 * mu) + ((1.0 - self.beta1) * g)
+        v_new = (self.beta2 * v) + ((1.0 - self.beta2) * (g**2.0))
+        mu_hat = mu_new / (1.0 - (self.beta1**t))
+        v_hat = v_new / (1.0 - (self.beta2**t))
+        update = self.k * mu_hat / (math.sqrt(v_hat) + self.epsilon)
+        self.mu[idx] = mu_new
+        self.v[idx] = v_new
+        self.t[idx] = t
+        return update
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
