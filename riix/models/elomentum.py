@@ -16,7 +16,7 @@ class EloMentum(OnlineRatingSystem):
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
         # momentum: float = 0.2,
-        momentum=(0.2, 0.99),
+        momentum=(0.2, 0.9),
         momentum_type: str = 'adam',
         update_method: str = 'iterative',
         epsilon: float = 1e-8,
@@ -88,7 +88,7 @@ class EloMentum(OnlineRatingSystem):
         t = self.t[idx]
         t += 1.0
         mu_new = (self.beta1 * mu) + ((1.0 - self.beta1) * g)
-        v_new = (self.beta2 * v) + ((1.0 - self.beta2) * (g**2.0))
+        v_new = (self.beta2 * v) + ((1.0 - self.beta2) * (g * g))
         mu_hat = mu_new / (1.0 - (self.beta1**t))
         v_hat = v_new / (1.0 - (self.beta2**t))
         update = self.k * mu_hat / (math.sqrt(v_hat) + self.epsilon)
