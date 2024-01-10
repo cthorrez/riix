@@ -9,6 +9,8 @@ from riix.utils.math_utils import sigmoid
 
 
 class OnlineDiscDecomp(OnlineRatingSystem):
+    """Online Disc Decomposition"""
+
     def __init__(
         self,
         num_competitors: int,
