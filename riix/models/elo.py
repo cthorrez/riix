@@ -6,6 +6,8 @@ from riix.utils.math_utils import sigmoid
 
 
 class Elo(OnlineRatingSystem):
+    """The Original Elo Rating system"""
+
     def __init__(
         self,
         num_competitors: int,

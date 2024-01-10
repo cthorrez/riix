@@ -9,6 +9,8 @@ from riix.utils.math_utils import sigmoid
 
 
 class EloMentum(OnlineRatingSystem):
+    """Elo with momentum!"""
+
     def __init__(
         self,
         num_competitors: int,
