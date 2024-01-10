@@ -7,6 +7,8 @@ from riix.core.base import OnlineRatingSystem
 
 
 class IterativeMarkov(OnlineRatingSystem):
+    """Iterative Markov rating system"""
+
     def __init__(
         self,
         num_competitors: int,
