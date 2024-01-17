@@ -21,6 +21,12 @@
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
 
+            <h2>Contents</h2>
+            <ul>
+  <li><a href="#riix">riix</a></li>
+  <li><a href="#terms">terms</a></li>
+</ul>
+
 
             <h2>Submodules</h2>
             <ul>
@@ -45,10 +51,42 @@
                     <h1 class="modulename">
 riix    </h1>
 
-                
-                
-                
-                
+                        <div class="docstring"><h2 id="riix">riix</h2>
+
+<p><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg" alt="CC BY-NC-SA 4.0" /></a></p>
+
+<p>This work is licensed under a
+<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.</p>
+
+<p><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png" alt="CC BY-NC-SA 4.0" /></a></p>
+
+<p>Open source implementations of online rating systems. The focus is on efficiency for offline experimentation with static datasets, not for streaming/online applications.</p>
+
+<h2 id="terms">terms</h2>
+
+<ul>
+<li>Matchup: A single instance in which 2 or more entities compete. A generalization over a game, set, match, series, or round etc.</li>
+<li>Competitor: An entity which participates in a competition event. A generalzation over a player or a team. </li>
+<li>N (int): number of matchups in a dataset</li>
+<li>C (int): number of unique competitors in a dataset</li>
+<li>competitor_id (int): ranging from 0 to C-1, a unique identifier for each competitor</li>
+<li>time_step (int): ranging from 0 to T. First competition in dataset is at time_step 0, last is at time_step T</li>
+<li>matchups (ndarray[int] of shape [N,2]): a matrix where each row represents a competition event. The The columns contain the competitor_ids of the two participants in the event</li>
+<li>time_steps (ndarray[int] of shape [N,]): a vector where the ith entry contains the integer time_step indicating when the ith matchup occured. Must be monotonically non-decreasing</li>
+<li>outcomes (ndarray[float] of shape [N,]): a vector where the ith entry contains the outcome of the ith competition event in the matchups array. 1.0 indicates the first competitor won, 0.0 indicaes the second competitor won, and 0.5 can indicate a draw</li>
+</ul>
+</div>
+
+                        <input id="mod-riix-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+
+                        <label class="view-source-button" for="mod-riix-view-source"><span>View Source</span></label>
+
+                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">1</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a><span class="sd">.. include:: ../README.md</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos">3</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span></pre></div>
+
+
             </section>
     </main>
 <script>
