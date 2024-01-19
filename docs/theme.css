@@ -18,3 +18,10 @@
     --def: #0cdd0c;
     --annotation: #00c037;
 }
+
+.pdoc blockquote {
+    margin-left: 2rem;
+    padding-left: 0.5em; /* This adds padding on all sides */
+    background-color: #3b3b3b;
+    border-left: 4px solid #6c6c6c;
+}
