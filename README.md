@@ -1,17 +1,18 @@
-## riix
+Open source implementations of online rating systems focusing on efficiency for offline experimentation
 
+
+## License
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
-This work is licensed under a
+This package is licensed under a
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+I've chosen a non-commercial license as overbroad protection to prevent the use of this package in the gambling and odds setting industries. If you want to use riix for your business in any other area please do not hesitate to reach out and I'll happily grant you an eternal lifetime license. :)
 
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
 
 [cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
 [cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
 [cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
-
-Open source implementations of online rating systems. The focus is on efficiency for offline experimentation with static datasets, not for streaming/online applications.
 
 ## terms
 * Matchup: A single instance in which 2 or more entities compete. A generalization over a game, set, match, series, or round etc.
