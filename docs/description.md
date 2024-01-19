@@ -39,7 +39,7 @@ dataset = RatingDataset(
 >>> loaded dataset with:
 >>> 1000 matchups
 >>> 100 unique competitors
->>> 9 rating periods of length 1D
+>>> 10 rating periods of length 1D
 
 model = Elo(num_competitors=dataset.num_competitors)
 metrics = evaluate(model, dataset)

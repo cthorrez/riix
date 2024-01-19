@@ -64,7 +64,7 @@ class RatingDataset:
         else:
             self.iter_fn = self.iter_by_rating_period
             if verbose:
-                print(f'{np.max(self.time_steps)} rating periods of length {rating_period}')
+                print(f'{np.max(self.time_steps) + 1} rating periods of length {rating_period}')
 
     def iter_by_rating_period(self):
         """iterate batches one rating period at a time"""
