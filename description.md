@@ -1,6 +1,7 @@
 Open source implementations of online rating systems focusing on efficiency for offline experimentation
 
 ## When to use riix
+
 This package is designed to accelerate experiments studying and comparing rating systems. In the scenario where you have paired comparison datasets with a known number of competitors and time range, riix exploits that information to achieve fast runtimes. It's **not** useful in the streaming case where new data with new competitors are coming in. It also only currently supports 1v1 competitions but future support for two team competitions is planned. (more than 2 teams is not)
 
 
