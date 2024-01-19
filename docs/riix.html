@@ -24,8 +24,8 @@
 
             <h2>Contents</h2>
             <ul>
-  <li><a href="#riix">riix</a></li>
-  <li><a href="#terms">terms</a></li>
+  <li><a href="#when-to-use-riix">When to use riix</a></li>
+  <li><a href="#license">License</a></li>
 </ul>
 
 
@@ -52,30 +52,43 @@
                     <h1 class="modulename">
 riix    </h1>
 
-                        <div class="docstring"><h2 id="riix">riix</h2>
+                        <div class="docstring"><p>Open source implementations of online rating systems focusing on efficiency for offline experimentation</p>
 
-<p><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg" alt="CC BY-NC-SA 4.0" /></a></p>
+<h2 id="when-to-use-riix">When to use riix</h2>
 
-<p>This work is licensed under a
-<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.</p>
+<p>This package is designed to accelerate experiments studying and comparing rating systems. In the scenario where you have paired comparison datasets with a known number of competitors and time range, riix exploits that information to achieve fast runtimes. It's <strong>not</strong> useful in the streaming case where new data with new competitors are coming in. It also only currently supports 1v1 competitions but future support for two team competitions is planned. (more than 2 teams is not)</p>
 
-<p><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png" alt="CC BY-NC-SA 4.0" /></a></p>
+<blockquote>
+  <p>I have a large dataset of player matches for a game and want to determine which rating system out of Elo, Glicko, TrueSkill etc. gives the best predictive accuracy.</p>
+</blockquote>
 
-<p>Open source implementations of online rating systems. The focus is on efficiency for offline experimentation with static datasets, not for streaming/online applications.</p>
+<p>Use riix! 👍</p>
 
-<h2 id="terms">terms</h2>
+<blockquote>
+  <p>I want to incorporate skill based matchmaking into the game I am creating and want a package to compute ratings for players on the fly.</p>
+</blockquote>
+
+<p>There are lots of other great python packages for that too! (just not riix)</p>
 
 <ul>
-<li>Matchup: A single instance in which 2 or more entities compete. A generalization over a game, set, match, series, or round etc.</li>
-<li>Competitor: An entity which participates in a competition event. A generalzation over a player or a team. </li>
-<li>N (int): number of matchups in a dataset</li>
-<li>C (int): number of unique competitors in a dataset</li>
-<li>competitor_id (int): ranging from 0 to C-1, a unique identifier for each competitor</li>
-<li>time_step (int): ranging from 0 to T. First competition in dataset is at time_step 0, last is at time_step T</li>
-<li>matchups (ndarray[int] of shape [N,2]): a matrix where each row represents a competition event. The The columns contain the competitor_ids of the two participants in the event</li>
-<li>time_steps (ndarray[int] of shape [N,]): a vector where the ith entry contains the integer time_step indicating when the ith matchup occured. Must be monotonically non-decreasing</li>
-<li>outcomes (ndarray[float] of shape [N,]): a vector where the ith entry contains the outcome of the ith competition event in the matchups array. 1.0 indicates the first competitor won, 0.0 indicaes the second competitor won, and 0.5 can indicate a draw</li>
+<li><a href="https://github.com/OpenDebates/openskill.py">openskill.py</a> Multi-way competitions with <a href="https://www.jmlr.org/papers/v12/weng11a.html">Weng-Lin</a> rating systems</li>
+<li><a href="https://github.com/topics/trueskill">trueskill</a> Open source implementation of Microsoft's rating system</li>
+<li><a href="https://github.com/agoragames/PythonSkills">PythonSkills</a> A port of <a href="https://www.moserware.com/2010/03/computing-your-skill.html">Moserware's</a> Glicko and TrueSkill <a href="https://github.com/moserware/Skills">C# code</a> to python</li>
+<li><a href="https://github.com/mbhynes/skelo/tree/main">skelo</a> Elo and Glicko 2 with the <a href="https://scikit-learn.org/stable/">scikit-learn</a> interface</li>
+<li><a href="https://github.com/kari/mmr-python">mmr-python</a> Glicko and Weng-Lin rating systems</li>
+<li>glicko2
+<ul>
+<li><a href="https://github.com/sublee/glicko2">sublee/glicko2</a></li>
+<li><a href="https://github.com/deepy/glicko2">deepy/glicko2</a></li>
+</ul></li>
+<li><a href="https://github.com/pfmonville/whole_history_rating">whole_history_rating</a> Python port of <a href="https://www.remi-coulom.fr/WHR/">WHR</a></li>
 </ul>
+
+<h2 id="license">License</h2>
+
+<p>This package is licensed under a
+<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.
+I've chosen a non-commercial license as overbroad protection to prevent the use of this package in the gambling and odds setting industries. If you would like to use riix for your business in any other area please do not hesitate to reach out and I'll happily grant you an eternal lifetime license. :)</p>
 </div>
 
                         <input id="mod-riix-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -83,7 +96,7 @@ riix    </h1>
                         <label class="view-source-button" for="mod-riix-view-source"><span>View Source</span></label>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">1</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a><span class="sd">.. include:: ../README.md</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a><span class="sd">.. include:: ../description.md</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos">3</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span></pre></div>
 
