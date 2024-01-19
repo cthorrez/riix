@@ -19,6 +19,10 @@ dependencies = [
 
 [tool.ruff]
 line-length = 120
+ignore-init-module-imports = true
 
 [tool.ruff.format]
 quote-style = "single"
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]

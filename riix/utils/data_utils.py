@@ -1,7 +1,10 @@
 """classes and functions for working with rating data"""
+
 import math
+import time
 from typing import List
 import numpy as np
+from scipy.special import expit as sigmoid
 import pandas as pd
 
 
@@ -42,16 +45,16 @@ class RatingDataset:
         del epoch_times, first_time, period_delta  # free up memory before moving on
 
         # map competitor names/ids to integers
-        self.idx_to_competitor = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
-        self.num_competitors = len(self.idx_to_competitor)
-        self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.idx_to_competitor)}
+        self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
+        self.num_competitors = len(self.competitors)
+        self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
         self.matchups = df[competitor_cols].map(lambda comp: self.competitor_to_idx[str(comp)]).values.astype(np.int64)
         self.outcomes = df[outcome_col].values.astype(np.float64)
 
         if verbose:
             print('loaded dataset with:')
             print(f'{self.matchups.shape[0]} matchups')
-            print(f'{len(self.idx_to_competitor)} unique competitors')
+            print(f'{len(self.competitors)} unique competitors')
 
         if batch_size is not None:
             self.iter_fn = self.iter_by_batch
@@ -91,3 +94,45 @@ class RatingDataset:
 
     def __len__(self):
         return self.matchups.shape[0]
+
+
+def generate_matchup_data(
+    num_matchups: int = 1000,
+    num_competitors: int = 100,
+    num_rating_periods: int = 10,
+    skill_var: float = 1.0,
+    outcome_noise_var: float = 0.1,
+    draw_margin: float = 0.1,
+    seed: int = 0,
+):
+    start_time = int(time.time())
+    matchups_per_period = num_matchups // num_rating_periods
+    period_offsets = np.arange(num_rating_periods) * (3600 * 24)
+    initial_timestamps = np.zeros(num_rating_periods, dtype=np.int64) + start_time
+    timestamps = (initial_timestamps + period_offsets).repeat(matchups_per_period)
+
+    rng = np.random.default_rng(seed=seed)
+    skill_means = rng.normal(loc=0.0, scale=skill_var, size=num_competitors)
+    comp_1 = rng.integers(low=0, high=num_competitors, size=(num_matchups, 1))
+    offset = rng.integers(low=1, high=num_competitors, size=(num_matchups, 1))
+    comp_2 = np.mod(comp_1 + offset, num_competitors)
+    matchups = np.hstack([comp_1, comp_2])
+    skills = skill_means[matchups]
+    skill_diffs = skills[:, 0] - skills[:, 1]
+    noise = rng.normal(loc=0.0, scale=outcome_noise_var)
+    probs = sigmoid(skill_diffs + noise)
+    outcomes = np.zeros(num_matchups) + 0.5
+    outcomes[probs >= 0.5 + draw_margin] = 1.0
+    outcomes[probs < 0.5 - draw_margin] = 0.0
+
+    data = {
+        'timestamp': timestamps,
+        'competitor_1': matchups[:, 0],
+        'competitor_2': matchups[:, 1],
+        'outcome': outcomes,
+    }
+    df = pd.DataFrame(data)
+    df['date'] = pd.to_datetime(df['timestamp'], unit='s')
+    df['competitor_1'] = 'competitor_' + df['competitor_1'].astype(str)
+    df['competitor_2'] = 'competitor_' + df['competitor_2'].astype(str)
+    return df

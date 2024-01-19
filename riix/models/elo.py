@@ -70,6 +70,8 @@ class Elo(OnlineRatingSystem):
 
     def print_top_k(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
+        max_len = np.max([len(name) for name in competitor_names] + [10])
+        print(f'{"competitor": <{max_len}}\t{"rating"}')
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.ratings[comp_idx])
+            print(f'{competitor_names[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')

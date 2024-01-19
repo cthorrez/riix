@@ -21,12 +21,59 @@ There are lots of other great python packages for that too! (just not riix)
   * [deepy/glicko2](https://github.com/deepy/glicko2)
 * [whole_history_rating](https://github.com/pfmonville/whole_history_rating) Python port of [WHR](https://www.remi-coulom.fr/WHR/)
 
+## Example
+```
+from riix.models.elo import Elo
+from riix.utils import RatingDataset, generate_matchup_data
+from riix.eval import evaluate
+
+df = generate_matchup_data() # replace with your pandas dataframe
+dataset = RatingDataset(
+    df,
+    competitor_cols=['competitor_1', 'competitor_2'],
+    outcome_col='outcome',
+    datetime_col='date',
+    rating_period='1D',
+)
+
+>>> loaded dataset with:
+>>> 1000 matchups
+>>> 100 unique competitors
+>>> 9 rating periods of length 1D
+
+model = Elo(num_competitors=dataset.num_competitors)
+metrics = evaluate(model, dataset)
+metrics
+
+>>> {'accuracy': 0.799,
+>>> 'log_loss': 0.5363807117304283,
+>>> 'brier_score': 0.1292005977180302,
+>>> 'duration': 0.003565073013305664}
+
+model.print_top_k(k=5, competitor_names=dataset.competitors)
+
+>>> competitor   	rating
+>>> competitor_74	1730.661227
+>>> competitor_48	1727.693338
+>>> competitor_47	1725.183076
+>>> competitor_89	1719.935741
+>>> competitor_62	1712.183214
+>>> competitor_91	1705.191708
+>>> competitor_39	1700.305710
+>>> competitor_49	1695.374757
+>>> competitor_41	1693.937946
+>>> competitor_19	1693.364903
+```
+
 ## License
 This package is licensed under a
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
 I've chosen a non-commercial license as overbroad protection to prevent the use of this package in the gambling and odds setting industries. If you would like to use riix for your business in any other area please do not hesitate to reach out and I'll happily grant you an eternal lifetime license. :)
 
 [cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+
+## Abut the name
+The name riix represents an attempt to cleverly represent the idea of "R8" (pronounced "rate") alphabetically using the Roman numeral IIX in place of 8. By the time I realized the correct numeral would have been VIII I was already attatched to the name riix so I stuck with it. However on further research it turns out the Romans themselves occasionally used this form as well! [Why Romans Sometimes Wrote 8 as VIII, And Sometimes as IIX: A Possible Explanation](https://scholarworks.utep.edu/cs_techrep/1555/)
 
 
 
