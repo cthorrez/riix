@@ -1,3 +1,3 @@
 """
-.. include:: ../description.md
+.. include:: ../docs/description.md
 """

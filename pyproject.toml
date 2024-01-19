@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "riix"
 version = "0.0.0-dev"
 description = "vectorized implementations of online rating systems"
-readme = "description.md"
+readme = "docs/description.md"
 authors = [
     {name="Clayton Thorrez", email="claytonthorrez@gmail.com"},
 ]
