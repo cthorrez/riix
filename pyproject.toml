@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "riix"
-version = "0.0.0-dev"
+version = "0.0.1-dev"
 description = "vectorized implementations of online rating systems"
 readme = "docs/description.md"
 authors = [
