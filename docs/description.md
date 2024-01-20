@@ -58,11 +58,6 @@ model.print_top_k(k=5, competitor_names=dataset.competitors)
 >>> competitor_47	1725.183076
 >>> competitor_89	1719.935741
 >>> competitor_62	1712.183214
->>> competitor_91	1705.191708
->>> competitor_39	1700.305710
->>> competitor_49	1695.374757
->>> competitor_41	1693.937946
->>> competitor_19	1693.364903
 ```
 
 ## License
