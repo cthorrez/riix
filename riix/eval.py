@@ -9,18 +9,28 @@ from riix.utils.data_utils import MatchupDataset
 from riix.metrics import binary_metrics_suite
 
 
+# def evaluate(rater: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
+#     """evaluate a rating system on a dataset"""
+#     all_probs = np.zeros(len(dataset))
+#     probs_idx = 0
+#     start_time = time.time()
+#     for time_step, matchups, outcomes in dataset:
+#         probs = rater.predict(time_step=time_step, matchups=matchups, set_cache=cache)
+#         all_probs[probs_idx : probs_idx + probs.shape[0]] = probs
+#         probs_idx += probs.shape[0]
+#         rater.fit(time_step, matchups, outcomes, use_cache=cache)
+#     duration = time.time() - start_time
+#     metrics = binary_metrics_suite(all_probs, dataset.outcomes)
+#     metrics['duration'] = duration
+#     return metrics
+
+
 def evaluate(rater: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
     """evaluate a rating system on a dataset"""
-    all_probs = np.zeros(len(dataset))
-    probs_idx = 0
     start_time = time.time()
-    for time_step, matchups, outcomes in dataset:
-        probs = rater.predict(time_step=time_step, matchups=matchups, set_cache=cache)
-        all_probs[probs_idx : probs_idx + probs.shape[0]] = probs
-        probs_idx += probs.shape[0]
-        rater.fit(time_step, matchups, outcomes, use_cache=cache)
+    probs = rater.rate_dataset(dataset)
     duration = time.time() - start_time
-    metrics = binary_metrics_suite(all_probs, dataset.outcomes)
+    metrics = binary_metrics_suite(probs, dataset.outcomes)
     metrics['duration'] = duration
     return metrics
 

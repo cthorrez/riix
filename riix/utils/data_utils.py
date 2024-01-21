@@ -2,10 +2,18 @@
 
 import math
 import time
-from typing import List
+from typing import Optional, List, NamedTuple
 import numpy as np
 from scipy.special import expit as sigmoid
 import pandas as pd
+
+
+class MatchupBatch(NamedTuple):
+    """class to hold a batch of matchupdata"""
+
+    matchups: np.ndarray
+    outcomes: np.ndarray
+    time_step: Optional[int] = None
 
 
 class MatchupDataset:
@@ -66,7 +74,7 @@ class MatchupDataset:
             if verbose:
                 print(f'{np.max(self.time_steps) + 1} rating periods of length {rating_period}')
 
-    def iter_by_rating_period(self):
+    def iter_by_rating_period(self) -> MatchupBatch:
         """iterate batches one rating period at a time"""
         period_start_idx = 0
         for period_end_idx in self.end_time_step_idxs:
@@ -74,23 +82,25 @@ class MatchupDataset:
             matchups = self.matchups[period_start_idx:period_end_idx]
             outcomes = self.outcomes[period_start_idx:period_end_idx]
             period_start_idx = period_end_idx
-            yield time_step, matchups, outcomes
+            yield MatchupBatch(matchups, outcomes, time_step)
 
-    def iter_by_batch(self, batch_size=None):
+    def iter_by_batch(self, batch_size=None) -> MatchupBatch:
         """iterate in fixed size batches"""
         num_batches = math.ceil(len(self) / self.batch_size)
         batch_start_idx = 0
         for _ in range(num_batches):
             batch_end_idx = batch_start_idx + self.batch_size
-            time_step = self.time_steps[batch_start_idx]
+            time_step = self.time_steps[
+                batch_start_idx
+            ]  # it's possible the batch represents data from multiple time_steps
             matchups = self.matchups[batch_start_idx:batch_end_idx]
             outcomes = self.outcomes[batch_start_idx:batch_end_idx]
             batch_start_idx = batch_end_idx
-            yield time_step, matchups, outcomes
+            yield MatchupBatch(matchups, outcomes, time_step)
 
     def __iter__(self):
-        for tup in iter(self.iter_fn()):
-            yield tup
+        for batch in iter(self.iter_fn()):
+            yield batch
 
     def __len__(self):
         return self.matchups.shape[0]

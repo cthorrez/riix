@@ -1,7 +1,7 @@
 """Elo"""
 import math
 import numpy as np
-from riix.core.base import OnlineRatingSystem
+from riix.core.base import OnlineRatingSystem, RatingOutputBatch
 from riix.utils.math_utils import sigmoid
 
 
@@ -27,7 +27,7 @@ class Elo(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update_fn = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
@@ -67,6 +67,17 @@ class Elo(OnlineRatingSystem):
             update = self.k * (outcomes[idx] - prob)
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
+
+    def rate_batch(
+        self,
+        batch,
+        return_competitor_info: bool = False,
+        cache: bool = False,
+    ):
+        probs = self.predict(matchups=batch.matchups, set_cache=cache)
+        competitor_info = None
+        self.update_fn(batch.matchups, batch.outcomes, use_cache=cache)
+        return RatingOutputBatch(probs, competitor_info)
 
     def print_top_k(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
