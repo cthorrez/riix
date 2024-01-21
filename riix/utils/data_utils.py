@@ -8,7 +8,7 @@ from scipy.special import expit as sigmoid
 import pandas as pd
 
 
-class RatingDataset:
+class MatchupDataset:
     """class for loading and iterating over paired comparison data"""
 
     def __init__(

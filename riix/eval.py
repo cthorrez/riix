@@ -5,11 +5,11 @@ from itertools import product
 from collections import defaultdict
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.data_utils import RatingDataset
+from riix.utils.data_utils import MatchupDataset
 from riix.metrics import binary_metrics_suite
 
 
-def evaluate(rater: OnlineRatingSystem, dataset: RatingDataset, cache=True):
+def evaluate(rater: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
     """evaluate a rating system on a dataset"""
     all_probs = np.zeros(len(dataset))
     probs_idx = 0

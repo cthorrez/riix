@@ -24,11 +24,11 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```
 from riix.models.elo import Elo
-from riix.utils import RatingDataset, generate_matchup_data
+from riix.utils import MatchupDataset, generate_matchup_data
 from riix.eval import evaluate
 
 df = generate_matchup_data() # replace with your pandas dataframe
-dataset = RatingDataset(
+dataset = MatchupDataset(
     df,
     competitor_cols=['competitor_1', 'competitor_2'],
     outcome_col='outcome',

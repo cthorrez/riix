@@ -89,11 +89,11 @@ riix    </h1>
 <h2 id="example">Example</h2>
 
 <pre><code>from <a href="riix/models/elo.html">riix.models.elo</a> import Elo
-from <a href="riix/utils.html">riix.utils</a> import RatingDataset, generate_matchup_data
+from <a href="riix/utils.html">riix.utils</a> import MatchupDataset, generate_matchup_data
 from <a href="riix/eval.html">riix.eval</a> import evaluate
 
 df = generate_matchup_data() # replace with your pandas dataframe
-dataset = RatingDataset(
+dataset = MatchupDataset(
     df,
     competitor_cols=['competitor_1', 'competitor_2'],
     outcome_col='outcome',
@@ -123,11 +123,6 @@ model.print_top_k(k=5, competitor_names=dataset.competitors)
 &gt;&gt;&gt; competitor_47   1725.183076
 &gt;&gt;&gt; competitor_89   1719.935741
 &gt;&gt;&gt; competitor_62   1712.183214
-&gt;&gt;&gt; competitor_91   1705.191708
-&gt;&gt;&gt; competitor_39   1700.305710
-&gt;&gt;&gt; competitor_49   1695.374757
-&gt;&gt;&gt; competitor_41   1693.937946
-&gt;&gt;&gt; competitor_19   1693.364903
 </code></pre>
 
 <h2 id="license">License</h2>

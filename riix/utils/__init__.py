@@ -1,1 +1,1 @@
-from .data_utils import RatingDataset, generate_matchup_data
+from .data_utils import MatchupDataset, generate_matchup_data

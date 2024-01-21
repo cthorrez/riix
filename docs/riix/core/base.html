@@ -40,6 +40,9 @@
                         <li>
                                 <a class="function" href="#OnlineRatingSystem.fit">fit</a>
                         </li>
+                        <li>
+                                <a class="function" href="#OnlineRatingSystem.rate_dataset">rate_dataset</a>
+                        </li>
                 </ul>
 
             </li>
@@ -69,21 +72,25 @@
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="sd">&quot;&quot;&quot;base class for online rating systems&quot;&quot;&quot;</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="kn">from</span> <span class="nn">riix.utils</span> <span class="kn">import</span> <span class="n">MatchupDataset</span>
 </span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a>
-</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a><span class="k">class</span> <span class="nc">OnlineRatingSystem</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
-</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;base class for online rating systems&quot;&quot;&quot;</span>
-</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a>
-</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
-</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>    <span class="p">):</span>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="k">class</span> <span class="nc">OnlineRatingSystem</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;base class for online rating systems&quot;&quot;&quot;</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>    <span class="p">):</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="k">def</span> <span class="nf">rate_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">MatchupDataset</span><span class="p">,</span> <span class="n">return_competitor_info</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 </span></pre></div>
 
 
@@ -99,19 +106,22 @@
 
     </div>
     <a class="headerlink" href="#OnlineRatingSystem"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem-7"><a href="#OnlineRatingSystem-7"><span class="linenos"> 7</span></a><span class="k">class</span> <span class="nc">OnlineRatingSystem</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
-</span><span id="OnlineRatingSystem-8"><a href="#OnlineRatingSystem-8"><span class="linenos"> 8</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;base class for online rating systems&quot;&quot;&quot;</span>
-</span><span id="OnlineRatingSystem-9"><a href="#OnlineRatingSystem-9"><span class="linenos"> 9</span></a>
-</span><span id="OnlineRatingSystem-10"><a href="#OnlineRatingSystem-10"><span class="linenos">10</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
-</span><span id="OnlineRatingSystem-11"><a href="#OnlineRatingSystem-11"><span class="linenos">11</span></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem-12"><a href="#OnlineRatingSystem-12"><span class="linenos">12</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem-13"><a href="#OnlineRatingSystem-13"><span class="linenos">13</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem-14"><a href="#OnlineRatingSystem-14"><span class="linenos">14</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem-15"><a href="#OnlineRatingSystem-15"><span class="linenos">15</span></a>    <span class="p">):</span>
-</span><span id="OnlineRatingSystem-16"><a href="#OnlineRatingSystem-16"><span class="linenos">16</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span id="OnlineRatingSystem-17"><a href="#OnlineRatingSystem-17"><span class="linenos">17</span></a>
-</span><span id="OnlineRatingSystem-18"><a href="#OnlineRatingSystem-18"><span class="linenos">18</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
-</span><span id="OnlineRatingSystem-19"><a href="#OnlineRatingSystem-19"><span class="linenos">19</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem-8"><a href="#OnlineRatingSystem-8"><span class="linenos"> 8</span></a><span class="k">class</span> <span class="nc">OnlineRatingSystem</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+</span><span id="OnlineRatingSystem-9"><a href="#OnlineRatingSystem-9"><span class="linenos"> 9</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;base class for online rating systems&quot;&quot;&quot;</span>
+</span><span id="OnlineRatingSystem-10"><a href="#OnlineRatingSystem-10"><span class="linenos">10</span></a>
+</span><span id="OnlineRatingSystem-11"><a href="#OnlineRatingSystem-11"><span class="linenos">11</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
+</span><span id="OnlineRatingSystem-12"><a href="#OnlineRatingSystem-12"><span class="linenos">12</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem-13"><a href="#OnlineRatingSystem-13"><span class="linenos">13</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem-14"><a href="#OnlineRatingSystem-14"><span class="linenos">14</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem-15"><a href="#OnlineRatingSystem-15"><span class="linenos">15</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem-16"><a href="#OnlineRatingSystem-16"><span class="linenos">16</span></a>    <span class="p">):</span>
+</span><span id="OnlineRatingSystem-17"><a href="#OnlineRatingSystem-17"><span class="linenos">17</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span id="OnlineRatingSystem-18"><a href="#OnlineRatingSystem-18"><span class="linenos">18</span></a>
+</span><span id="OnlineRatingSystem-19"><a href="#OnlineRatingSystem-19"><span class="linenos">19</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="OnlineRatingSystem-20"><a href="#OnlineRatingSystem-20"><span class="linenos">20</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span id="OnlineRatingSystem-21"><a href="#OnlineRatingSystem-21"><span class="linenos">21</span></a>
+</span><span id="OnlineRatingSystem-22"><a href="#OnlineRatingSystem-22"><span class="linenos">22</span></a>    <span class="k">def</span> <span class="nf">rate_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">MatchupDataset</span><span class="p">,</span> <span class="n">return_competitor_info</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="OnlineRatingSystem-23"><a href="#OnlineRatingSystem-23"><span class="linenos">23</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 </span></pre></div>
 
 
@@ -130,13 +140,13 @@
 
     </div>
     <a class="headerlink" href="#OnlineRatingSystem.predict"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem.predict-10"><a href="#OnlineRatingSystem.predict-10"><span class="linenos">10</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
-</span><span id="OnlineRatingSystem.predict-11"><a href="#OnlineRatingSystem.predict-11"><span class="linenos">11</span></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem.predict-12"><a href="#OnlineRatingSystem.predict-12"><span class="linenos">12</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem.predict-13"><a href="#OnlineRatingSystem.predict-13"><span class="linenos">13</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem.predict-14"><a href="#OnlineRatingSystem.predict-14"><span class="linenos">14</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="OnlineRatingSystem.predict-15"><a href="#OnlineRatingSystem.predict-15"><span class="linenos">15</span></a>    <span class="p">):</span>
-</span><span id="OnlineRatingSystem.predict-16"><a href="#OnlineRatingSystem.predict-16"><span class="linenos">16</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem.predict-11"><a href="#OnlineRatingSystem.predict-11"><span class="linenos">11</span></a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
+</span><span id="OnlineRatingSystem.predict-12"><a href="#OnlineRatingSystem.predict-12"><span class="linenos">12</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem.predict-13"><a href="#OnlineRatingSystem.predict-13"><span class="linenos">13</span></a>        <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem.predict-14"><a href="#OnlineRatingSystem.predict-14"><span class="linenos">14</span></a>        <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem.predict-15"><a href="#OnlineRatingSystem.predict-15"><span class="linenos">15</span></a>        <span class="n">set_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="OnlineRatingSystem.predict-16"><a href="#OnlineRatingSystem.predict-16"><span class="linenos">16</span></a>    <span class="p">):</span>
+</span><span id="OnlineRatingSystem.predict-17"><a href="#OnlineRatingSystem.predict-17"><span class="linenos">17</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 </span></pre></div>
 
 
@@ -154,8 +164,27 @@
 
     </div>
     <a class="headerlink" href="#OnlineRatingSystem.fit"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem.fit-18"><a href="#OnlineRatingSystem.fit-18"><span class="linenos">18</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
-</span><span id="OnlineRatingSystem.fit-19"><a href="#OnlineRatingSystem.fit-19"><span class="linenos">19</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem.fit-19"><a href="#OnlineRatingSystem.fit-19"><span class="linenos">19</span></a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">matchups</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="OnlineRatingSystem.fit-20"><a href="#OnlineRatingSystem.fit-20"><span class="linenos">20</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="OnlineRatingSystem.rate_dataset" class="classattr">
+                                        <input id="OnlineRatingSystem.rate_dataset-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">rate_dataset</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">dataset</span><span class="p">:</span> <span class="n"><a href="../utils/data_utils.html#MatchupDataset">riix.utils.data_utils.MatchupDataset</a></span>,</span><span class="param">	<span class="n">return_competitor_info</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="OnlineRatingSystem.rate_dataset-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#OnlineRatingSystem.rate_dataset"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="OnlineRatingSystem.rate_dataset-22"><a href="#OnlineRatingSystem.rate_dataset-22"><span class="linenos">22</span></a>    <span class="k">def</span> <span class="nf">rate_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">MatchupDataset</span><span class="p">,</span> <span class="n">return_competitor_info</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+</span><span id="OnlineRatingSystem.rate_dataset-23"><a href="#OnlineRatingSystem.rate_dataset-23"><span class="linenos">23</span></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 </span></pre></div>
 
 
