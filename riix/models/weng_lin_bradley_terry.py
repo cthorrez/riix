@@ -29,9 +29,9 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
 
         if update_method == 'batched':
-            self.update_fn = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_fn = self.iterative_update
+            self.update = self.iterative_update
 
         self.cache = {
             'combined_sigma2s': None,
@@ -60,7 +60,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache=use_cache)
+        self.update(matchups, outcomes, use_cache=use_cache)
 
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""

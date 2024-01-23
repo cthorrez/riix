@@ -57,9 +57,9 @@ class Melo(OnlineRatingSystem):
         self.omega[np.arange(1, two_k, 2), np.arange(0, two_k - 1, 2)] = -1  # Lower off diagonal
 
         if update_method == 'batched':
-            self.update_fn = self.batched_update
+            self.update = self.batched_update
         if update_method == 'iterative':
-            self.update_fn = self.iterative_update
+            self.update = self.iterative_update
 
         self.cache = {'probs': None, 'c_1_times_omega': None}
 
@@ -86,7 +86,7 @@ class Melo(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache=use_cache)
+        self.update(matchups, outcomes, use_cache=use_cache)
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""

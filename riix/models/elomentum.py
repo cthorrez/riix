@@ -34,9 +34,9 @@ class EloMentum(OnlineRatingSystem):
         self.v = np.zeros(shape=num_competitors, dtype=dtype)
         self.cache = {'probs': None}
         if update_method == 'batched':
-            self.update_fn = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_fn = self.iterative_update
+            self.update = self.iterative_update
 
         if momentum_type == 'nesterov':
             self.momentum_fn = self.get_nesterov_momentum_update
@@ -64,7 +64,7 @@ class EloMentum(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache=use_cache)
+        self.update(matchups, outcomes, use_cache=use_cache)
 
     def get_momentum_update(self, idx, g):
         v = self.v[idx]

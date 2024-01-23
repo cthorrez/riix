@@ -28,9 +28,9 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         self.vs = np.zeros(shape=num_competitors, dtype=dtype) + initial_v
         self.cache = {'probs': None}
         if update_method == 'batched':
-            self.update_fn = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_fn = self.iterative_update
+            self.update = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -50,7 +50,7 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache=use_cache)
+        self.update(matchups, outcomes, use_cache=use_cache)
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""

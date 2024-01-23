@@ -30,9 +30,9 @@ class TemporalMassey(OnlineRatingSystem):
 
         self.cache = {'probs': None}
         if update_method == 'batched':
-            self.update_fn = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_fn = self.iterative_update
+            self.update = self.iterative_update
 
     def get_constant_coefs(self, **kwargs):
         return self.alpha, self.beta, self.alpha, self.beta
@@ -68,7 +68,7 @@ class TemporalMassey(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_fn(matchups, outcomes, use_cache=use_cache)
+        self.update(matchups, outcomes, use_cache=use_cache)
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
