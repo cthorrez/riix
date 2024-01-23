@@ -34,9 +34,9 @@ class VSKF(OnlineRatingSystem):
         self.prev_time_step = 0
 
         if update_method == 'batched':
-            self.update_function = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_function = self.iterative_update
+            self.update = self.iterative_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -53,7 +53,7 @@ class VSKF(OnlineRatingSystem):
         outcomes: np.ndarray,
         use_cache: bool = False,
     ):
-        self.update_function(time_step, matchups, outcomes, use_cache=use_cache)
+        self.update(time_step, matchups, outcomes, use_cache=use_cache)
 
     def time_dynamics_update(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""

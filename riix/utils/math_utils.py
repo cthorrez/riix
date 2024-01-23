@@ -11,6 +11,11 @@ def sigmoid(x):
     return expit(x)
 
 
+def sigmoid_scalar(x):
+    """no need to use numpy on scalars"""
+    return 1.0 / (1.0 + math.exp(-x))
+
+
 def base_10_sigmoid(x):
     """some methods prefer base 10 unfortunately"""
     return 1.0 / (1.0 + (10.0**-x))

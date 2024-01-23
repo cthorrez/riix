@@ -2,7 +2,7 @@
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 
 Q = math.log(10.0) / 400.0
@@ -18,6 +18,8 @@ def g(rating_dev):
 
 class Glicko(OnlineRatingSystem):
     """the og glicko rating system shoutout to Mark"""
+
+    rating_dim = 2
 
     def __init__(
         self,
@@ -38,11 +40,12 @@ class Glicko(OnlineRatingSystem):
         self.do_weird_prob = do_weird_prob
 
         if update_method == 'batched':
-            self.update_function = self.batched_update
+            self.update = self.batched_update
         elif update_method == 'iterative':
-            self.update_function = self.iterative_update
+            self.update = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    # TODO should Glicko probs incorporate the dev increase?
+    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
@@ -58,14 +61,11 @@ class Glicko(OnlineRatingSystem):
             probs = sigmoid(Q * combined_dev * rating_diffs)
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update_function(matchups, outcomes, use_cache=use_cache)
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        means = self.ratings[matchups]
+        devs = self.rating_devs[matchups]
+        ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
+        return ratings
 
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""
@@ -107,8 +107,8 @@ class Glicko(OnlineRatingSystem):
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
             g_rating_devs = g(self.rating_devs[matchups[idx]])
             g_rating_devs_2 = np.square(g_rating_devs)
-            prob_1 = sigmoid(Q * g_rating_devs[1] * rating_diff)
-            prob_2 = sigmoid(-Q * g_rating_devs[0] * rating_diff)
+            prob_1 = sigmoid_scalar(Q * g_rating_devs[1] * rating_diff)
+            prob_2 = sigmoid_scalar(-Q * g_rating_devs[0] * rating_diff)
             d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * g_rating_devs_2[1])
             d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * g_rating_devs_2[0])
             r1_num = Q * g_rating_devs[1] * (outcomes[idx] - prob_1)
