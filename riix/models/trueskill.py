@@ -9,6 +9,8 @@ from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_
 class TrueSkill(OnlineRatingSystem):
     """the og TrueSkill rating system shoutout to Microsoft"""
 
+    rating_dim = 2
+
     def __init__(
         self,
         num_competitors: int,
@@ -35,7 +37,13 @@ class TrueSkill(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        mus = self.mus[matchups]
+        sigma2s = self.sigma2s[matchups]
+        ratings = np.concatenate((mus[..., None], sigma2s[..., None]), axis=2).reshape(mus.shape[0], -1)
+        return ratings
+
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
@@ -49,15 +57,6 @@ class TrueSkill(OnlineRatingSystem):
         probs = norm.cdf(norm_diffs)
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
@@ -66,7 +65,7 @@ class TrueSkill(OnlineRatingSystem):
         # self.sigma2s[self.has_played] += self.tau_squared  # increase var for ALL players
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, use_cache=False):
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.increase_rating_dev(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
