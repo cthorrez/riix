@@ -11,6 +11,8 @@ LOG10_SQUARED = LOG10**2.0
 class VSKF(OnlineRatingSystem):
     """vector covariance simplified kalman filter"""
 
+    rating_dim = 2
+
     def __init__(
         self,
         num_competitors: int,
@@ -38,7 +40,7 @@ class VSKF(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         ratings_1 = self.mus[matchups[:, 0]]
         ratings_2 = self.mus[matchups[:, 1]]
@@ -46,14 +48,11 @@ class VSKF(OnlineRatingSystem):
         probs = base_10_sigmoid(rating_diffs / self.s)
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(time_step, matchups, outcomes, use_cache=use_cache)
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        mus = self.mus[matchups]
+        vs = self.vs[matchups]
+        ratings = np.concatenate((mus[..., None], vs[..., None]), axis=2).reshape(mus.shape[0], -1)
+        return ratings
 
     def time_dynamics_update(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""
@@ -69,7 +68,7 @@ class VSKF(OnlineRatingSystem):
 
         return active_in_period
 
-    def batched_update(self, time_step, matchups, outcomes, use_cache=False):
+    def batched_update(self, matchups, outcomes, time_step, use_cache=False):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.time_dynamics_update(time_step, matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
@@ -98,7 +97,7 @@ class VSKF(OnlineRatingSystem):
         self.mus[active_in_period] += self.vs[active_in_period] * mu_updates_pooled
         self.vs[active_in_period] *= v_updates_pooled
 
-    def iterative_update(self, time_step, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.time_dynamics_update(time_step, matchups)
         for idx in range(matchups.shape[0]):
