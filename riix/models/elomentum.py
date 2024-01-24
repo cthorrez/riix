@@ -11,6 +11,8 @@ from riix.utils.math_utils import sigmoid
 class EloMentum(OnlineRatingSystem):
     """Elo with momentum!"""
 
+    rating_dim = 1
+
     def __init__(
         self,
         num_competitors: int,
@@ -48,6 +50,9 @@ class EloMentum(OnlineRatingSystem):
         else:
             self.momentum_fn = self.get_momentum_update
 
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        return self.ratings[matchups]
+
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
@@ -57,13 +62,7 @@ class EloMentum(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
+    def update(self, matchups: np.ndarray, outcomes: np.ndarray, use_cache: bool = False, **kwargs):
         self.update(matchups, outcomes, use_cache=use_cache)
 
     def get_momentum_update(self, idx, g):

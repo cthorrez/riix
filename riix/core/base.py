@@ -34,7 +34,7 @@ class OnlineRatingSystem(ABC):
     ):
         if return_pre_match_ratings:
             pre_match_ratings = self.get_pre_match_ratings(matchups, time_step=time_step)
-        probs = self.predict(matchups=matchups, set_cache=cache)
+        probs = self.predict(matchups=matchups, time_step=time_step, set_cache=cache)
         self.update(matchups, outcomes, time_step=time_step, use_cache=cache)
         if not return_pre_match_ratings:
             return probs
