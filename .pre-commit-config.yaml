@@ -11,7 +11,7 @@ repos:
   -   id: pdoc
       name: pdoc
       description: 'pdoc: Auto-generate API documentation for Python projects'
-      entry: pdoc -o docs -t docs --logo ./logo.png riix
+      entry: pdoc -o docs -t docs --logo ./riix_logo.png --favicon ./riix_favicon.ico riix
       language: python
       language_version: python3
       require_serial: true
