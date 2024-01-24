@@ -29,6 +29,8 @@ def generate_orthogonal_matrix(d, k):
 class Melo(OnlineRatingSystem):
     """Multidimensional Elo rating system, (good for rock paper scissors problems)"""
 
+    rating_dim = 1
+
     def __init__(
         self,
         num_competitors: int,
@@ -63,7 +65,10 @@ class Melo(OnlineRatingSystem):
 
         self.cache = {'probs': None, 'c_1_times_omega': None}
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def get_pre_match_ratings(self, matchups, **kwargs):
+        return self.ratings[matchups]
+
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
@@ -79,16 +84,7 @@ class Melo(OnlineRatingSystem):
 
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
-    def batched_update(self, matchups, outcomes, use_cache):
+    def batched_update(self, matchups, outcomes, time_step=None, use_cache=False):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
@@ -115,7 +111,7 @@ class Melo(OnlineRatingSystem):
         self.ratings[active_in_period] += self.eta_r * per_competitor_diff
         self.c[active_in_period] += c_updates_pooled
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
