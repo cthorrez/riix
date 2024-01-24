@@ -9,6 +9,12 @@ from riix.utils.math_utils import sigmoid
 
 
 class vElo(OnlineRatingSystem):
+    """
+    variance incorporated Elo by Weng, Lin, and their students!
+    """
+
+    rating_dim = 2
+
     def __init__(
         self,
         num_competitors: int,
@@ -47,14 +53,11 @@ class vElo(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        means = self.mus[matchups]
+        variances = self.vs[matchups]
+        ratings = np.concatenate((means[..., None], variances[..., None]), axis=2).reshape(means.shape[0], -1)
+        return ratings
 
     def batched_update(self, matchups, outcomes, use_cache):
         """apply one update based on all of the results of the rating period"""
