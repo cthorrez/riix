@@ -23,7 +23,6 @@ There are lots of other great python packages for that too! (just not riix)
 
 ## Example
 ```
-import numpy as np
 from riix.models.elo import Elo
 from riix.utils import MatchupDataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
@@ -43,10 +42,7 @@ dataset = MatchupDataset(
 >>> 10 rating periods of length 1D
 
 model = Elo(num_competitors=dataset.num_competitors)
-probs = []
-for matchups, outcomes, time_step in dataset:
-    probs.extend(model.predict(matchups))
-    model.update(matchups, outcomes)
+probs = model.rate_dataset(dataset)
 metrics = binary_metrics_suite(probs=np.array(probs), outcomes=dataset.outcomes)
 
 >>> {'accuracy': 0.799,
