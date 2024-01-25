@@ -9,6 +9,8 @@ from riix.core.base import OnlineRatingSystem
 
 
 class TemporalMassey(OnlineRatingSystem):
+    rating_dim = 1
+
     def __init__(
         self,
         num_competitors: int,
@@ -34,6 +36,9 @@ class TemporalMassey(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        return self.ratings[matchups]
+
     def get_constant_coefs(self, **kwargs):
         return self.alpha, self.beta, self.alpha, self.beta
 
@@ -52,7 +57,7 @@ class TemporalMassey(OnlineRatingSystem):
         alpha_2, beta_2 = self.get_varying_coefs_helper(idx_2)
         return alpha_1, beta_1, alpha_2, beta_2
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
@@ -61,16 +66,7 @@ class TemporalMassey(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
-    def batched_update(self, matchups, outcomes, use_cache):
+    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
         """apply one update based on all of the results of the rating period"""
         pass
 

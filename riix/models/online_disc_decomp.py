@@ -11,6 +11,8 @@ from riix.utils.math_utils import sigmoid
 class OnlineDiscDecomp(OnlineRatingSystem):
     """Online Disc Decomposition"""
 
+    rating_dim = 2
+
     def __init__(
         self,
         num_competitors: int,
@@ -32,7 +34,13 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        us = self.us[matchups]
+        vs = self.vs[matchups]
+        ratings = np.concatenate((us[..., None], vs[..., None]), axis=2).reshape(us.shape[0], -1)
+        return ratings
+
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         us_1 = self.us[matchups[:, 0]]
         us_2 = self.us[matchups[:, 1]]
@@ -43,16 +51,7 @@ class OnlineDiscDecomp(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
-    def batched_update(self, matchups, outcomes, use_cache):
+    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active

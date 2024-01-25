@@ -9,6 +9,8 @@ from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_
 class WengLinThurstoneMosteller(OnlineRatingSystem):
     """The Bayesian Online Rating System introduced by Weng and Lin"""
 
+    rating_dim = 2
+
     def __init__(
         self,
         num_competitors: int,
@@ -37,8 +39,15 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
             self.update = self.iterative_update
         self.cache = {}
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        mus = self.mus[matchups]
+        sigma2s = self.sigma2s[matchups]
+        ratings = np.concatenate((mus[..., None], sigma2s[..., None]), axis=2).reshape(mus.shape[0], -1)
+        return ratings
+
+    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
+        # TODO should add time based var increase to prediction logic
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
         combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
@@ -51,15 +60,6 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         probs = norm.cdf(norm_diffs)
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
     def increase_rating_dev(self, matchups):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
@@ -68,8 +68,9 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         self.sigma2s[self.has_played] += self.tau_squared  # increase var for ALL players
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, use_cache=False):
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
+        # TODO fix the update to actually be based on time...
         active_in_period = self.increase_rating_dev(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 

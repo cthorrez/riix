@@ -9,6 +9,8 @@ from riix.core.base import OnlineRatingSystem
 class IterativeMarkov(OnlineRatingSystem):
     """Iterative Markov rating system"""
 
+    rating_dim = 1
+
     def __init__(
         self,
         num_competitors: int,
@@ -28,7 +30,10 @@ class IterativeMarkov(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
+    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        return self.ratings[matchups]
+
+    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
@@ -37,20 +42,11 @@ class IterativeMarkov(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def fit(
-        self,
-        time_step: int,
-        matchups: np.ndarray,
-        outcomes: np.ndarray,
-        use_cache: bool = False,
-    ):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
-    def batched_update(self, matchups, outcomes, use_cache):
+    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
         """apply one update based on all of the results of the rating period"""
         pass
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
