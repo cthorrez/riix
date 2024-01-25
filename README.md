@@ -22,7 +22,7 @@ There are lots of other great python packages for that too! (just not riix)
 * [whole_history_rating](https://github.com/pfmonville/whole_history_rating) Python port of [WHR](https://www.remi-coulom.fr/WHR/)
 
 ## Example
-```
+```python
 from riix.models.elo import Elo
 from riix.utils import MatchupDataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
