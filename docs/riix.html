@@ -89,8 +89,7 @@ riix    </h1>
 
 <h2 id="example">Example</h2>
 
-<pre><code>import numpy as np
-from <a href="riix/models/elo.html">riix.models.elo</a> import Elo
+<pre><code>from <a href="riix/models/elo.html">riix.models.elo</a> import Elo
 from <a href="riix/utils.html">riix.utils</a> import MatchupDataset, generate_matchup_data
 from <a href="riix/metrics.html">riix.metrics</a> import binary_metrics_suite
 
@@ -109,10 +108,7 @@ dataset = MatchupDataset(
 &gt;&gt;&gt; 10 rating periods of length 1D
 
 model = Elo(num_competitors=dataset.num_competitors)
-probs = []
-for matchups, outcomes, time_step in dataset:
-    probs.extend(model.predict(matchups))
-    model.update(matchups, outcomes)
+probs = model.rate_dataset(dataset)
 metrics = binary_metrics_suite(probs=np.array(probs), outcomes=dataset.outcomes)
 
 &gt;&gt;&gt; {'accuracy': 0.799,
