@@ -23,14 +23,6 @@
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
 
-            <h2>Contents</h2>
-            <ul>
-  <li><a href="#when-to-use-riix">When to use riix</a></li>
-  <li><a href="#example">Example</a></li>
-  <li><a href="#license">License</a></li>
-  <li><a href="#abut-the-name">Abut the name</a></li>
-</ul>
-
 
             <h2>Submodules</h2>
             <ul>
@@ -55,86 +47,7 @@
                     <h1 class="modulename">
 riix    </h1>
 
-                        <div class="docstring"><p>Open source implementations of online rating systems focusing on efficiency for offline experimentation</p>
-
-<h2 id="when-to-use-riix">When to use riix</h2>
-
-<p>This package is designed to accelerate experiments studying and comparing rating systems. In the scenario where you have paired comparison datasets with a known number of competitors and time range, riix exploits that information to achieve fast runtimes. It's <strong>not</strong> useful in the streaming case where new data with new competitors are coming in. It also only currently supports 1v1 competitions but future support for two team competitions is planned. (more than 2 teams is not)</p>
-
-<blockquote>
-  <p>I have a large dataset of player matches for a game and want to determine which rating system out of Elo, Glicko, TrueSkill etc. gives the best predictive accuracy.</p>
-</blockquote>
-
-<p>Use riix! 👍</p>
-
-<blockquote>
-  <p>I want to incorporate skill based matchmaking into the game I am creating and want a package to compute ratings for players on the fly.</p>
-</blockquote>
-
-<p>There are lots of other great python packages for that too! (just not riix)</p>
-
-<ul>
-<li><a href="https://github.com/OpenDebates/openskill.py">openskill.py</a> Multi-way competitions with <a href="https://www.jmlr.org/papers/v12/weng11a.html">Weng-Lin</a> rating systems</li>
-<li><a href="https://github.com/topics/trueskill">trueskill</a> Open source implementation of Microsoft's rating system</li>
-<li><a href="https://github.com/agoragames/PythonSkills">PythonSkills</a> A port of <a href="https://www.moserware.com/2010/03/computing-your-skill.html">Moserware's</a> Glicko and TrueSkill <a href="https://github.com/moserware/Skills">C# code</a> to python</li>
-<li><a href="https://github.com/mbhynes/skelo/tree/main">skelo</a> Elo and Glicko 2 with the <a href="https://scikit-learn.org/stable/">scikit-learn</a> interface</li>
-<li><a href="https://github.com/kari/mmr-python">mmr-python</a> Glicko and Weng-Lin rating systems</li>
-<li>glicko2
-<ul>
-<li><a href="https://github.com/sublee/glicko2">sublee/glicko2</a></li>
-<li><a href="https://github.com/deepy/glicko2">deepy/glicko2</a></li>
-</ul></li>
-<li><a href="https://github.com/pfmonville/whole_history_rating">whole_history_rating</a> Python port of <a href="https://www.remi-coulom.fr/WHR/">WHR</a></li>
-</ul>
-
-<h2 id="example">Example</h2>
-
-<pre><code>from <a href="riix/models/elo.html">riix.models.elo</a> import Elo
-from <a href="riix/utils.html">riix.utils</a> import MatchupDataset, generate_matchup_data
-from <a href="riix/eval.html">riix.eval</a> import evaluate
-
-df = generate_matchup_data() # replace with your pandas dataframe
-dataset = MatchupDataset(
-    df,
-    competitor_cols=['competitor_1', 'competitor_2'],
-    outcome_col='outcome',
-    datetime_col='date',
-    rating_period='1D',
-)
-
-&gt;&gt;&gt; loaded dataset with:
-&gt;&gt;&gt; 1000 matchups
-&gt;&gt;&gt; 100 unique competitors
-&gt;&gt;&gt; 10 rating periods of length 1D
-
-model = Elo(num_competitors=dataset.num_competitors)
-metrics = evaluate(model, dataset)
-metrics
-
-&gt;&gt;&gt; {'accuracy': 0.799,
-&gt;&gt;&gt; 'log_loss': 0.5363807117304283,
-&gt;&gt;&gt; 'brier_score': 0.1292005977180302,
-&gt;&gt;&gt; 'duration': 0.003565073013305664}
-
-model.print_top_k(k=5, competitor_names=dataset.competitors)
-
-&gt;&gt;&gt; competitor      rating
-&gt;&gt;&gt; competitor_74   1730.661227
-&gt;&gt;&gt; competitor_48   1727.693338
-&gt;&gt;&gt; competitor_47   1725.183076
-&gt;&gt;&gt; competitor_89   1719.935741
-&gt;&gt;&gt; competitor_62   1712.183214
-</code></pre>
-
-<h2 id="license">License</h2>
-
-<p>This package is licensed under a
-<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.
-I've chosen a non-commercial license as overbroad protection to prevent the use of this package in the gambling and odds setting industries. If you would like to use riix for your business in any other area please do not hesitate to reach out and I'll happily grant you an eternal lifetime license. :)</p>
-
-<h2 id="abut-the-name">Abut the name</h2>
-
-<p>The name riix represents an attempt to cleverly represent the idea of "R8" (pronounced "rate") alphabetically using the Roman numeral IIX in place of 8. By the time I realized the correct numeral would have been VIII I was already attatched to the name riix so I stuck with it. However on further research it turns out the Romans themselves occasionally used this form as well! <a href="https://scholarworks.utep.edu/cs_techrep/1555/">Why Romans Sometimes Wrote 8 as VIII, And Sometimes as IIX: A Possible Explanation</a></p>
+                        <div class="docstring"><p></p>
 </div>
 
                         <input id="mod-riix-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -142,7 +55,7 @@ I've chosen a non-commercial license as overbroad protection to prevent the use 
                         <label class="view-source-button" for="mod-riix-view-source"><span>View Source</span></label>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">1</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a><span class="sd">.. include:: ../docs/description.md</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a><span class="sd">.. include:: README.md</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos">3</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span></pre></div>
 

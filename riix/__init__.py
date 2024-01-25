@@ -1,3 +1,3 @@
 """
-.. include:: ../docs/description.md
+.. include:: README.md
 """
