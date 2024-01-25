@@ -43,7 +43,7 @@ dataset = MatchupDataset(
 
 model = Elo(num_competitors=dataset.num_competitors)
 probs = model.rate_dataset(dataset)
-metrics = binary_metrics_suite(probs=np.array(probs), outcomes=dataset.outcomes)
+metrics = binary_metrics_suite(probs=probs, outcomes=dataset.outcomes)
 
 >>> {'accuracy': 0.799,
 >>> 'log_loss': 0.5363807117304283,
