@@ -102,8 +102,8 @@ def generate_matchup_data(
     num_matchups: int = 1000,
     num_competitors: int = 100,
     num_rating_periods: int = 10,
-    skill_var: float = 1.0,
-    outcome_noise_var: float = 0.1,
+    skill_sd: float = 1.0,
+    outcome_noise_sd: float = 0.1,
     draw_margin: float = 0.1,
     seed: int = 0,
 ):
@@ -114,14 +114,14 @@ def generate_matchup_data(
     timestamps = (initial_timestamps + period_offsets).repeat(matchups_per_period)
 
     rng = np.random.default_rng(seed=seed)
-    skill_means = rng.normal(loc=0.0, scale=skill_var, size=num_competitors)
+    skill_means = rng.normal(loc=0.0, scale=skill_sd, size=num_competitors)
     comp_1 = rng.integers(low=0, high=num_competitors, size=(num_matchups, 1))
     offset = rng.integers(low=1, high=num_competitors, size=(num_matchups, 1))
     comp_2 = np.mod(comp_1 + offset, num_competitors)
     matchups = np.hstack([comp_1, comp_2])
     skills = skill_means[matchups]
     skill_diffs = skills[:, 0] - skills[:, 1]
-    noise = rng.normal(loc=0.0, scale=outcome_noise_var)
+    noise = rng.normal(loc=0.0, scale=outcome_noise_sd)
     probs = sigmoid(skill_diffs + noise)
     outcomes = np.zeros(num_matchups) + 0.5
     outcomes[probs >= 0.5 + draw_margin] = 1.0
