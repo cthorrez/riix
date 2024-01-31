@@ -4,7 +4,6 @@ import math
 import time
 from typing import List
 import numpy as np
-from scipy.special import expit as sigmoid
 import pandas as pd
 
 
@@ -102,9 +101,9 @@ def generate_matchup_data(
     num_matchups: int = 1000,
     num_competitors: int = 100,
     num_rating_periods: int = 10,
-    skill_sd: float = 1.0,
-    outcome_noise_sd: float = 0.1,
-    draw_margin: float = 0.1,
+    strength_var: float = 1.0,
+    strength_noise_var: float = 0.1,
+    theta: float = 1.0,
     seed: int = 0,
 ):
     start_time = int(time.time())
@@ -114,18 +113,21 @@ def generate_matchup_data(
     timestamps = (initial_timestamps + period_offsets).repeat(matchups_per_period)
 
     rng = np.random.default_rng(seed=seed)
-    skill_means = rng.normal(loc=0.0, scale=skill_sd, size=num_competitors)
+    strength_means = rng.normal(loc=0.0, scale=math.sqrt(strength_var), size=num_competitors)
     comp_1 = rng.integers(low=0, high=num_competitors, size=(num_matchups, 1))
     offset = rng.integers(low=1, high=num_competitors, size=(num_matchups, 1))
     comp_2 = np.mod(comp_1 + offset, num_competitors)
     matchups = np.hstack([comp_1, comp_2])
-    skills = skill_means[matchups]
-    skill_diffs = skills[:, 0] - skills[:, 1]
-    noise = rng.normal(loc=0.0, scale=outcome_noise_sd)
-    probs = sigmoid(skill_diffs + noise)
-    outcomes = np.zeros(num_matchups) + 0.5
-    outcomes[probs >= 0.5 + draw_margin] = 1.0
-    outcomes[probs < 0.5 - draw_margin] = 0.0
+    strengths = strength_means[matchups]
+
+    strength_noise = rng.normal(loc=0.0, scale=math.sqrt(strength_noise_var), size=strengths.shape)
+    strengths = strengths + strength_noise
+
+    probs = np.zeros(shape=(num_matchups, 3))  # p(comp_1 win), p(draw), p(comp_2 win)
+    probs[:, 0] = strengths[:, 0] / (strengths[:, 0] + (theta * strengths[:, 1]))
+    probs[:, 2] = strengths[:, 1] / (strengths[:, 1] + (theta * strengths[:, 0]))
+    probs[:, 1] = 1.0 - probs[:, 0] - probs[:, 2]
+    outcomes = np.argmax(probs, axis=1) / 2.0  # map 0->0, 1->0.5, 2->1.0
 
     data = {
         'timestamp': timestamps,

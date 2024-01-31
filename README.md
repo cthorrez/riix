@@ -45,19 +45,17 @@ model = Elo(num_competitors=dataset.num_competitors)
 probs = model.rate_dataset(dataset)
 metrics = binary_metrics_suite(probs=probs, outcomes=dataset.outcomes)
 
->>> {'accuracy': 0.799,
->>> 'log_loss': 0.5363807117304283,
->>> 'brier_score': 0.1292005977180302,
->>> 'duration': 0.003565073013305664}
+>>> {'accuracy': 0.7345,
+>>> 'log_loss': 0.5780088473558098,
+>>> 'brier_score': 0.19573451315967008}
 
 model.print_top_k(k=5, competitor_names=dataset.competitors)
 
->>> competitor   	rating
->>> competitor_74	1730.661227
->>> competitor_48	1727.693338
->>> competitor_47	1725.183076
->>> competitor_89	1719.935741
->>> competitor_62	1712.183214
+>>> competitor_31	1686.920129
+>>> competitor_45	1680.669196
+>>> competitor_13	1671.284619
+>>> competitor_52	1667.222705
+>>> competitor_96	1664.490425
 ```
 
 ## License

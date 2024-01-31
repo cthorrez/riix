@@ -112,19 +112,17 @@ riix    </h1>
 <span class="n">probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">rate_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 <span class="n">metrics</span> <span class="o">=</span> <span class="n">binary_metrics_suite</span><span class="p">(</span><span class="n">probs</span><span class="o">=</span><span class="n">probs</span><span class="p">,</span> <span class="n">outcomes</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">outcomes</span><span class="p">)</span>
 
-<span class="o">&gt;&gt;&gt;</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="mf">0.799</span><span class="p">,</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;log_loss&#39;</span><span class="p">:</span> <span class="mf">0.5363807117304283</span><span class="p">,</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;brier_score&#39;</span><span class="p">:</span> <span class="mf">0.1292005977180302</span><span class="p">,</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mf">0.003565073013305664</span><span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="mf">0.7345</span><span class="p">,</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;log_loss&#39;</span><span class="p">:</span> <span class="mf">0.5780088473558098</span><span class="p">,</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;brier_score&#39;</span><span class="p">:</span> <span class="mf">0.19573451315967008</span><span class="p">}</span>
 
 <span class="n">model</span><span class="o">.</span><span class="n">print_top_k</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">competitor_names</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">competitors</span><span class="p">)</span>
 
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor</span>      <span class="n">rating</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_74</span>   <span class="mf">1730.661227</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_48</span>   <span class="mf">1727.693338</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_47</span>   <span class="mf">1725.183076</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_89</span>   <span class="mf">1719.935741</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_62</span>   <span class="mf">1712.183214</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_31</span>   <span class="mf">1686.920129</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_45</span>   <span class="mf">1680.669196</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_13</span>   <span class="mf">1671.284619</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_52</span>   <span class="mf">1667.222705</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_96</span>   <span class="mf">1664.490425</span>
 </code></pre>
 </div>
 
