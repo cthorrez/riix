@@ -42,8 +42,9 @@ dataset = MatchupDataset(
 >>> 10 rating periods of length 1D
 
 model = Elo(num_competitors=dataset.num_competitors)
-probs = model.rate_dataset(dataset)
+probs = model.fit_dataset(dataset, return_pre_match_probs=True)
 metrics = binary_metrics_suite(probs=probs, outcomes=dataset.outcomes)
+metrics
 
 >>> {'accuracy': 0.7345,
 >>> 'log_loss': 0.5780088473558098,

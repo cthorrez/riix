@@ -25,13 +25,10 @@ from riix.metrics import binary_metrics_suite
 #     return metrics
 
 
-def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, return_pre_match_ratings=True, cache=True):
+def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
-    if not return_pre_match_ratings:
-        probs = model.rate_dataset(dataset, return_pre_match_ratings=return_pre_match_ratings)
-    else:
-        probs, ratings = model.rate_dataset(dataset, return_pre_match_ratings=return_pre_match_ratings)
+    probs = model.fit_dataset(dataset, return_pre_match_probs=True)
     duration = time.time() - start_time
     metrics = binary_metrics_suite(probs, dataset.outcomes)
     metrics['duration'] = duration
