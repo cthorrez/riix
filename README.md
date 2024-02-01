@@ -66,6 +66,6 @@ I've chosen a non-commercial license as overbroad protection to prevent the use 
 
 [cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
 
-## Abut the name
+## About the name
 The name riix represents an attempt to cleverly represent the idea of "R8" (pronounced "rate") alphabetically using the Roman numeral IIX in place of 8. By the time I realized the correct numeral would have been VIII I was already attatched to the name riix so I stuck with it. However on further research it turns out the Romans themselves occasionally used this form as well! [Why Romans Sometimes Wrote 8 as VIII, And Sometimes as IIX: A Possible Explanation](https://scholarworks.utep.edu/cs_techrep/1555/)
 
