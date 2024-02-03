@@ -127,7 +127,9 @@ def generate_matchup_data(
     probs[:, 0] = strengths[:, 0] / (strengths[:, 0] + (theta * strengths[:, 1]))
     probs[:, 2] = strengths[:, 1] / (strengths[:, 1] + (theta * strengths[:, 0]))
     probs[:, 1] = 1.0 - probs[:, 0] - probs[:, 2]
-    outcomes = np.argmax(probs, axis=1) / 2.0  # map 0->0, 1->0.5, 2->1.0
+
+    outcomes = rng.multinomial(n=1, pvals=probs)
+    outcomes = np.argmax(outcomes, axis=1) / 2.0  # map 0->0, 1->0.5, 2->1.0
 
     data = {
         'timestamp': timestamps,
