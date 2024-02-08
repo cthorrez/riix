@@ -97,6 +97,16 @@ class MatchupDataset:
         return self.matchups.shape[0]
 
 
+def split_matchup_dataset(dataset, test_fraction=0.2):
+    # train_dataset = deepcopy(dataset)
+    # test_dataste = deepcopy(dataset)
+
+    # num_matchups = len(dataset)
+    # num_train_matchups = math.ceil(num_matchups * (1.0 - test_fraction))
+    # num_test_matchups = num_matchups - num_train_matchups
+    pass
+
+
 def generate_matchup_data(
     num_matchups: int = 1000,
     num_competitors: int = 100,

@@ -9,28 +9,23 @@ from riix.utils.data_utils import MatchupDataset
 from riix.metrics import binary_metrics_suite
 
 
-# def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
-#     """evaluate a rating system on a dataset"""
-#     all_probs = np.zeros(len(dataset))
-#     probs_idx = 0
-#     start_time = time.time()
-#     for matchups, outcomes, time_step in dataset:
-#         probs = model.predict(matchups=matchups, set_cache=cache, time_step=time_step)
-#         all_probs[probs_idx : probs_idx + probs.shape[0]] = probs
-#         probs_idx += probs.shape[0]
-#         model.fit(time_step, matchups, outcomes, use_cache=cache)
-#     duration = time.time() - start_time
-#     metrics = binary_metrics_suite(all_probs, dataset.outcomes)
-#     metrics['duration'] = duration
-#     return metrics
-
-
 def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, cache=True):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
     probs = model.fit_dataset(dataset, return_pre_match_probs=True)
     duration = time.time() - start_time
     metrics = binary_metrics_suite(probs, dataset.outcomes)
+    metrics['duration'] = duration
+    return metrics
+
+
+def train_and_evaluate(model: OnlineRatingSystem, train_dataset: MatchupDataset, test_dataset: MatchupDataset):
+    """fit on train_dataset, evaluate on test_dataset"""
+    start_time = time.time()
+    model.fit_dataset(train_dataset)
+    test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
+    duration = time.time() - start_time
+    metrics = binary_metrics_suite(test_probs, test_dataset.outcomes)
     metrics['duration'] = duration
     return metrics
 
