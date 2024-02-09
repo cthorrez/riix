@@ -3,6 +3,7 @@
 import math
 import time
 from typing import List
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 
@@ -98,13 +99,25 @@ class MatchupDataset:
 
 
 def split_matchup_dataset(dataset, test_fraction=0.2):
-    # train_dataset = deepcopy(dataset)
-    # test_dataste = deepcopy(dataset)
+    train_dataset = deepcopy(dataset)
+    test_dataset = deepcopy(dataset)
 
-    # num_matchups = len(dataset)
-    # num_train_matchups = math.ceil(num_matchups * (1.0 - test_fraction))
-    # num_test_matchups = num_matchups - num_train_matchups
-    pass
+    num_matchups = len(dataset)
+    num_train_matchups = math.ceil(num_matchups * (1.0 - test_fraction))
+
+    train_dataset.matchups = dataset.matchups[:num_train_matchups, :]
+    train_dataset.outcomes = dataset.outcomes[:num_train_matchups]
+    train_dataset.time_steps = dataset.time_steps[:num_train_matchups]
+    _, train_start_time_step_idxs = np.unique(train_dataset.time_steps, return_index=True)
+    train_dataset.end_time_step_idxs = np.append(train_start_time_step_idxs[1:], train_dataset.time_steps.shape[0])
+    num_train_time_steps = train_dataset.end_time_step_idxs.shape[0]
+
+    test_dataset.matchups = dataset.matchups[num_train_matchups:, :]
+    test_dataset.outcomes = dataset.outcomes[num_train_matchups:]
+    test_dataset.time_steps = dataset.time_steps[num_train_matchups:]
+    test_dataset.end_time_step_idxs = dataset.end_time_step_idxs[num_train_time_steps:] - num_train_matchups
+
+    return train_dataset, test_dataset
 
 
 def generate_matchup_data(
@@ -132,6 +145,8 @@ def generate_matchup_data(
 
     strength_noise = rng.normal(loc=0.0, scale=math.sqrt(strength_noise_var), size=strengths.shape)
     strengths = strengths + strength_noise
+    # they need to be positive!
+    strengths = np.exp(strengths)
 
     probs = np.zeros(shape=(num_matchups, 3))  # p(comp_1 win), p(draw), p(comp_2 win)
     probs[:, 0] = strengths[:, 0] / (strengths[:, 0] + (theta * strengths[:, 1]))
