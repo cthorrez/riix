@@ -121,12 +121,12 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
 
 
 def generate_matchup_data(
-    num_matchups: int = 1000,
+    num_matchups: int = 10000,
     num_competitors: int = 100,
     num_rating_periods: int = 10,
     strength_var: float = 1.0,
     strength_noise_var: float = 0.1,
-    theta: float = 1.0,
+    theta: float = 1.001,
     seed: int = 0,
 ):
     start_time = int(time.time())
