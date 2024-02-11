@@ -24,7 +24,7 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```python
 from riix.models.elo import Elo
-from riix.utils import MatchupDataset, generate_matchup_data
+from riix.utils import MatchupDataset, generate_matchup_data, split_matchup_dataset
 from riix.metrics import binary_metrics_suite
 
 df = generate_matchup_data() # replace with your pandas dataframe
@@ -35,28 +35,31 @@ dataset = MatchupDataset(
     datetime_col='date',
     rating_period='1D',
 )
+train_dataset, test_dataset = split_matchup_dataset(dataset, test_fraction=0.2)
+print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 
 >>> loaded dataset with:
->>> 1000 matchups
+>>> 10000 matchups
 >>> 100 unique competitors
 >>> 10 rating periods of length 1D
+>>> len(train_dataset)=8000, len(test_dataset)=2000
 
 model = Elo(num_competitors=dataset.num_competitors)
-probs = model.fit_dataset(dataset, return_pre_match_probs=True)
-metrics = binary_metrics_suite(probs=probs, outcomes=dataset.outcomes)
-metrics
+model.fit_dataset(train_dataset)
+test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
+test_metrics = binary_metrics_suite(probs=test_probs, outcomes=test_dataset.outcomes)
+print(test_metrics)
 
->>> {'accuracy': 0.7345,
->>> 'log_loss': 0.5780088473558098,
->>> 'brier_score': 0.19573451315967008}
+>>> {'accuracy': 0.72975, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
 
 model.print_top_k(k=5, competitor_names=dataset.competitors)
 
->>> competitor_31	1686.920129
->>> competitor_45	1680.669196
->>> competitor_13	1671.284619
->>> competitor_52	1667.222705
->>> competitor_96	1664.490425
+>>> competitor   	rating
+>>> competitor_69	1874.170019
+>>> competitor_75	1827.933570
+>>> competitor_12	1826.119826
+>>> competitor_81	1825.071605
+>>> competitor_30	1802.338983
 ```
 
 ## License
