@@ -64,10 +64,10 @@ class Elo(OnlineRatingSystem):
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
 
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-self.ratings)[:k]
-        max_len = np.max([len(name) for name in competitor_names] + [10])
+    def print_leaderboard(self, num_places):
+        sorted_idxs = np.argsort(-self.ratings)[:num_places]
+        max_len = np.max([len(comp) for comp in self.competitors] + [10])
         print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(f'{competitor_names[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')

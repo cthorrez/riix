@@ -24,7 +24,7 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```python
 from riix.models.elo import Elo
-from riix.utils import MatchupDataset, generate_matchup_data, split_matchup_dataset
+from riix.utils import MatchupDataset, split_matchup_dataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
 
 df = generate_matchup_data() # replace with your pandas dataframe
@@ -44,7 +44,7 @@ print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 >>> 10 rating periods of length 1D
 >>> len(train_dataset)=8000, len(test_dataset)=2000
 
-model = Elo(num_competitors=dataset.num_competitors)
+model = Elo(competitors=dataset.competitors)
 model.fit_dataset(train_dataset)
 test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
 test_metrics = binary_metrics_suite(probs=test_probs, outcomes=test_dataset.outcomes)
@@ -52,7 +52,7 @@ print(test_metrics)
 
 >>> {'accuracy': 0.72975, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
 
-model.print_leaderboard(k=5, competitor_names=dataset.competitors)
+model.print_leaderboard(num_places=5)
 
 >>> competitor   	rating
 >>> competitor_69	1874.170019
