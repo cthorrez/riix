@@ -23,7 +23,7 @@ class Glicko(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1500.0,
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
@@ -31,12 +31,12 @@ class Glicko(OnlineRatingSystem):
         update_method='iterative',
         do_weird_prob=False,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.initial_rating_dev = initial_rating_dev
         self.c2 = c**2.0
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
-        self.rating_devs = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating_dev
-        self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
+        self.rating_devs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating_dev
+        self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
         self.do_weird_prob = do_weird_prob
 
         if update_method == 'batched':

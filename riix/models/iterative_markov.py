@@ -13,17 +13,17 @@ class IterativeMarkov(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1.0,
         c: float = 0.1,
         weight_with_prob: bool = False,  # if True this becomes "Linear Elo"
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.c = c
         self.weight_with_prob = weight_with_prob
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
@@ -60,7 +60,7 @@ class IterativeMarkov(OnlineRatingSystem):
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]

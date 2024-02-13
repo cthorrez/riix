@@ -11,7 +11,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_mu: float = 25.0,
         initial_sigma: float = 8.333,
         beta: float = 4.166,
@@ -20,15 +20,15 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.beta = beta
         self.two_beta_squared = 2.0 * (beta**2.0)
         self.tau_squared = tau**2.0
         self.kappa = kappa
 
-        self.mus = np.zeros(shape=num_competitors, dtype=dtype) + initial_mu
-        self.sigma2s = np.zeros(shape=num_competitors, dtype=dtype) + initial_sigma**2.0
-        self.has_played = np.zeros(shape=num_competitors, dtype=np.bool_)
+        self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_mu
+        self.sigma2s = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma**2.0
+        self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
 
         if update_method == 'batched':
             self.update = self.batched_update

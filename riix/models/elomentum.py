@@ -15,7 +15,7 @@ class EloMentum(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
@@ -26,14 +26,14 @@ class EloMentum(OnlineRatingSystem):
         epsilon: float = 1e-8,
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.k = k
         self.alpha = alpha
         self.momentum = momentum
         self.epsilon = epsilon
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
 
-        self.v = np.zeros(shape=num_competitors, dtype=dtype)
+        self.v = np.zeros(shape=self.num_competitors, dtype=dtype)
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
@@ -44,8 +44,8 @@ class EloMentum(OnlineRatingSystem):
             self.momentum_fn = self.get_nesterov_momentum_update
         elif momentum_type == 'adam':
             self.momentum_fn = self.get_adam_update
-            self.mu = np.zeros(shape=num_competitors, dtype=dtype)
-            self.t = np.zeros(shape=num_competitors, dtype=np.int32)
+            self.mu = np.zeros(shape=self.num_competitors, dtype=dtype)
+            self.t = np.zeros(shape=self.num_competitors, dtype=np.int32)
             self.beta1, self.beta2 = momentum
         else:
             self.momentum_fn = self.get_momentum_update
@@ -126,7 +126,7 @@ class EloMentum(OnlineRatingSystem):
             self.ratings[comp_1] += update_1
             self.ratings[comp_2] += update_2
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]

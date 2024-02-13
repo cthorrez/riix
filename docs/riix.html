@@ -91,7 +91,7 @@ riix    </h1>
 
 <div class="pdoc-code codehilite">
 <pre><span></span><code><span class="kn">from</span> <span class="nn"><a href="riix/models/elo.html">riix.models.elo</a></span> <span class="kn">import</span> <span class="n">Elo</span>
-<span class="kn">from</span> <span class="nn"><a href="riix/utils.html">riix.utils</a></span> <span class="kn">import</span> <span class="n">MatchupDataset</span><span class="p">,</span> <span class="n">generate_matchup_data</span>
+<span class="kn">from</span> <span class="nn"><a href="riix/utils.html">riix.utils</a></span> <span class="kn">import</span> <span class="n">MatchupDataset</span><span class="p">,</span> <span class="n">generate_matchup_data</span><span class="p">,</span> <span class="n">split_matchup_dataset</span>
 <span class="kn">from</span> <span class="nn"><a href="riix/metrics.html">riix.metrics</a></span> <span class="kn">import</span> <span class="n">binary_metrics_suite</span>
 
 <span class="n">df</span> <span class="o">=</span> <span class="n">generate_matchup_data</span><span class="p">()</span> <span class="c1"># replace with your pandas dataframe</span>
@@ -102,28 +102,31 @@ riix    </h1>
     <span class="n">datetime_col</span><span class="o">=</span><span class="s1">&#39;date&#39;</span><span class="p">,</span>
     <span class="n">rating_period</span><span class="o">=</span><span class="s1">&#39;1D&#39;</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">split_matchup_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span><span class="si">=}</span><span class="s1">, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">)</span><span class="si">=}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 <span class="o">&gt;&gt;&gt;</span> <span class="n">loaded</span> <span class="n">dataset</span> <span class="k">with</span><span class="p">:</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="mi">1000</span> <span class="n">matchups</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">10000</span> <span class="n">matchups</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="mi">100</span> <span class="n">unique</span> <span class="n">competitors</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="mi">10</span> <span class="n">rating</span> <span class="n">periods</span> <span class="n">of</span> <span class="n">length</span> <span class="mi">1</span><span class="n">D</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">)</span><span class="o">=</span><span class="mi">2000</span>
 
 <span class="n">model</span> <span class="o">=</span> <span class="n">Elo</span><span class="p">(</span><span class="n">num_competitors</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_competitors</span><span class="p">)</span>
-<span class="n">probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">return_pre_match_probs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">metrics</span> <span class="o">=</span> <span class="n">binary_metrics_suite</span><span class="p">(</span><span class="n">probs</span><span class="o">=</span><span class="n">probs</span><span class="p">,</span> <span class="n">outcomes</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">outcomes</span><span class="p">)</span>
-<span class="n">metrics</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit_dataset</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span>
+<span class="n">test_probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit_dataset</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">,</span> <span class="n">return_pre_match_probs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">test_metrics</span> <span class="o">=</span> <span class="n">binary_metrics_suite</span><span class="p">(</span><span class="n">probs</span><span class="o">=</span><span class="n">test_probs</span><span class="p">,</span> <span class="n">outcomes</span><span class="o">=</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">outcomes</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">test_metrics</span><span class="p">)</span>
 
-<span class="o">&gt;&gt;&gt;</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="mf">0.7345</span><span class="p">,</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;log_loss&#39;</span><span class="p">:</span> <span class="mf">0.5780088473558098</span><span class="p">,</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="s1">&#39;brier_score&#39;</span><span class="p">:</span> <span class="mf">0.19573451315967008</span><span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="mf">0.72975</span><span class="p">,</span> <span class="s1">&#39;log_loss&#39;</span><span class="p">:</span> <span class="mf">0.5359083106524117</span><span class="p">,</span> <span class="s1">&#39;brier_score&#39;</span><span class="p">:</span> <span class="mf">0.1793377446861956</span><span class="p">}</span>
 
-<span class="n">model</span><span class="o">.</span><span class="n">print_top_k</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">competitor_names</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">competitors</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">print_leaderboard</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">competitor_names</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">competitors</span><span class="p">)</span>
 
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_31</span>   <span class="mf">1686.920129</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_45</span>   <span class="mf">1680.669196</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_13</span>   <span class="mf">1671.284619</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_52</span>   <span class="mf">1667.222705</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_96</span>   <span class="mf">1664.490425</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor</span>      <span class="n">rating</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_69</span>   <span class="mf">1874.170019</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_75</span>   <span class="mf">1827.933570</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_12</span>   <span class="mf">1826.119826</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_81</span>   <span class="mf">1825.071605</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">competitor_30</span>   <span class="mf">1802.338983</span>
 </code></pre>
 </div>
 

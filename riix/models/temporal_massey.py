@@ -13,22 +13,22 @@ class TemporalMassey(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1.0,
         alpha: float = 0.95,
         beta: float = 0.05,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+        super().__init__(competitors)
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         if (alpha is not None) and (beta is not None):
             self.alpha = alpha
             self.beta = beta
             self.get_coefs = self.get_constant_coefs
         else:
             self.get_coefs = self.get_varying_coefs
-            self.matchup_counts = np.zeros(shape=num_competitors, dtype=dtype)
+            self.matchup_counts = np.zeros(shape=self.num_competitors, dtype=dtype)
 
         self.cache = {'probs': None}
         if update_method == 'batched':
@@ -84,7 +84,7 @@ class TemporalMassey(OnlineRatingSystem):
             self.ratings[comp_1] = r_1_new
             self.ratings[comp_2] = r_2_new
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]

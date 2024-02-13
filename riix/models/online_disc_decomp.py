@@ -15,19 +15,19 @@ class OnlineDiscDecomp(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_u: float = 1.0,
         initial_v: float = 1.0,
         eta: float = 0.02,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.initial_u = initial_u
         self.initial_v = initial_v
         self.eta = eta
-        self.us = np.zeros(shape=num_competitors, dtype=dtype) + initial_u
-        self.vs = np.zeros(shape=num_competitors, dtype=dtype) + initial_v
+        self.us = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_u
+        self.vs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_v
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
@@ -83,7 +83,7 @@ class OnlineDiscDecomp(OnlineRatingSystem):
             self.us[comp_1] += v_update * v_2
             self.us[comp_2] -= v_update * v_1
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.us)[:k]
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]

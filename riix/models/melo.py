@@ -33,7 +33,7 @@ class Melo(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1500.0,
         dimension: int = 2,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
         eta_r: float = 32.0,  # this is the normal elo k factor
@@ -42,13 +42,13 @@ class Melo(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.eta_r = eta_r
         self.eta_c = eta_c
         self.alpha = alpha
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         two_k = 2 * dimension
-        self.c = generate_orthogonal_matrix(d=two_k, k=num_competitors).T / 10.0
+        self.c = generate_orthogonal_matrix(d=two_k, k=self.num_competitors).T / 10.0
 
         # rng = np.random.default_rng(42)
         # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))

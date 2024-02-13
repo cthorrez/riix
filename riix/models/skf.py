@@ -15,7 +15,7 @@ class VSKF(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         mu_0: float = 0.0,
         v_0: float = 1.0,
         beta: float = 1.0,
@@ -24,10 +24,10 @@ class VSKF(OnlineRatingSystem):
         dtype=np.float64,
         update_method='iterative',
     ):
-        self.num_competitors = num_competitors
-        self.mus = np.zeros(num_competitors, dtype=dtype) + mu_0
-        self.vs = np.zeros(num_competitors, dtype=dtype) + v_0
-        self.has_played = np.zeros(num_competitors, dtype=np.bool_)
+        super().__init__(competitors)
+        self.mus = np.zeros(self.num_competitors, dtype=dtype) + mu_0
+        self.vs = np.zeros(self.num_competitors, dtype=dtype) + v_0
+        self.has_played = np.zeros(self.num_competitors, dtype=np.bool_)
         self.beta = beta
         self.beta2 = beta**2.0
         self.s = s
@@ -125,7 +125,7 @@ class VSKF(OnlineRatingSystem):
             self.vs[comp_1] *= 1.0 - v_1 * v_update
             self.vs[comp_2] *= 1.0 - v_2 * v_update
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sort_array = self.mus - 3.0 * np.sqrt(self.vs)
         sorted_idxs = np.argsort(-sort_array)[:k]
         for k_idx in range(k):

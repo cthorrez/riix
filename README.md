@@ -52,7 +52,7 @@ print(test_metrics)
 
 >>> {'accuracy': 0.72975, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
 
-model.print_top_k(k=5, competitor_names=dataset.competitors)
+model.print_leaderboard(k=5, competitor_names=dataset.competitors)
 
 >>> competitor   	rating
 >>> competitor_69	1874.170019

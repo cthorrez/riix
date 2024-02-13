@@ -12,17 +12,17 @@ class Elo(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
+        super().__init__(competitors)
         self.k = k
         self.alpha = alpha
-        self.ratings = np.zeros(shape=num_competitors, dtype=dtype) + initial_rating
+        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
@@ -64,7 +64,7 @@ class Elo(OnlineRatingSystem):
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-self.ratings)[:k]
         max_len = np.max([len(name) for name in competitor_names] + [10])
         print(f'{"competitor": <{max_len}}\t{"rating"}')

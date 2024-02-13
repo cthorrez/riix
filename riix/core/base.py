@@ -10,6 +10,13 @@ class OnlineRatingSystem(ABC):
 
     rating_dim: int  # dimension of competitor ratings, eg 1 for Elo rating, 2 for TrueSkill mu and sigma
 
+    def __init__(self, competitors):
+        self.competitors = competitors
+        self.num_competitors = len(competitors)
+
+    def print_leaderboard(self, num_places=10):
+        raise NotImplementedError
+
     def predict(
         self,
         matchups: np.ndarray,

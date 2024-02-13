@@ -17,7 +17,7 @@ class vElo(OnlineRatingSystem):
 
     def __init__(
         self,
-        num_competitors: int,
+        competitors: list,
         # initial_mu: float = 1500.0,
         # initial_sigma: float = 250.0,
         # sigma_reduction_factor: float = 1 / 5,  # A in the paper
@@ -31,9 +31,9 @@ class vElo(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        self.num_competitors = num_competitors
-        self.mus = np.zeros(num_competitors, dtype=dtype) + initial_mu
-        self.vs = np.zeros(num_competitors, dtype=dtype) + np.square(initial_sigma)
+        super().__init__(competitors)
+        self.mus = np.zeros(self.num_competitors, dtype=dtype) + initial_mu
+        self.vs = np.zeros(self.num_competitors, dtype=dtype) + np.square(initial_sigma)
         self.sigma_reduction_factor = sigma_reduction_factor
         self.variance_lower_bound = sigma_lower_bound**2.0
         self.b = b
@@ -93,7 +93,7 @@ class vElo(OnlineRatingSystem):
             self.vs[comp_1] = v_1_p
             self.vs[comp_2] = v_2_p
 
-    def print_top_k(self, k, competitor_names):
+    def print_leaderboard(self, k, competitor_names):
         sorted_idxs = np.argsort(-(self.mus - 3.0 * np.sqrt(self.vs)))[:k]
         for k_idx in range(k):
             comp_idx = sorted_idxs[k_idx]
