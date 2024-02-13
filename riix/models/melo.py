@@ -2,6 +2,7 @@
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
+from riix.models.elo import Elo
 from riix.utils.math_utils import sigmoid
 
 
@@ -26,7 +27,7 @@ def generate_orthogonal_matrix(d, k):
     return matrix
 
 
-class Melo(OnlineRatingSystem):
+class Melo(Elo):
     """Multidimensional Elo rating system, (good for rock paper scissors problems)"""
 
     rating_dim = 1
@@ -42,7 +43,7 @@ class Melo(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        OnlineRatingSystem.__init__(self, competitors)
         self.eta_r = eta_r
         self.eta_c = eta_c
         self.alpha = alpha

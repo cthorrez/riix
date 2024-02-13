@@ -119,3 +119,12 @@ class Glicko(OnlineRatingSystem):
             self.ratings[comp_2] += r2_num / r2_denom
             self.rating_devs[comp_1] = math.sqrt(1.0 / r1_denom)
             self.rating_devs[comp_2] = math.sqrt(1.0 / r2_denom)
+
+    def print_leaderboard(self, num_places):
+        sort_array = self.ratings - (3.0 * self.rating_devs)
+        sorted_idxs = np.argsort(-sort_array)[:num_places]
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
+        print(f'{"competitor": <{max_len}}\t{"rating - (3*dev)"}\t')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')

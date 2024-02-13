@@ -5,10 +5,11 @@ Invented by Clayton Thorrez (me)
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
+from riix.models.elo import Elo
 from riix.utils.math_utils import sigmoid
 
 
-class EloMentum(OnlineRatingSystem):
+class EloMentum(Elo):
     """Elo with momentum!"""
 
     rating_dim = 1
@@ -26,7 +27,7 @@ class EloMentum(OnlineRatingSystem):
         epsilon: float = 1e-8,
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        OnlineRatingSystem.__init__(self, competitors)
         self.k = k
         self.alpha = alpha
         self.momentum = momentum
@@ -125,9 +126,3 @@ class EloMentum(OnlineRatingSystem):
             update_2 = self.momentum_fn(comp_2, g_2)
             self.ratings[comp_1] += update_1
             self.ratings[comp_2] += update_2
-
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-self.ratings)[:k]
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.ratings[comp_idx])

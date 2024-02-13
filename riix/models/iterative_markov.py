@@ -4,9 +4,10 @@ https://www.degruyter.com/document/doi/10.1515/jqas-2019-0070
 """
 import numpy as np
 from riix.core.base import OnlineRatingSystem
+from riix.models.elo import Elo
 
 
-class IterativeMarkov(OnlineRatingSystem):
+class IterativeMarkov(Elo):
     """Iterative Markov rating system"""
 
     rating_dim = 1
@@ -20,7 +21,7 @@ class IterativeMarkov(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        OnlineRatingSystem.__init__(self, competitors)
         self.c = c
         self.weight_with_prob = weight_with_prob
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
@@ -59,9 +60,3 @@ class IterativeMarkov(OnlineRatingSystem):
                 update *= prob_1
             self.ratings[comp_1] += update
             self.ratings[comp_2] -= update
-
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-self.ratings)[:k]
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.ratings[comp_idx])

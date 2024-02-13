@@ -144,3 +144,12 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
             self.mus[comp_1] += deltas[0]
             self.mus[comp_2] -= deltas[1]
             self.sigma2s[matchups[idx]] *= sigma2_multipliers
+
+    def print_leaderboard(self, num_places):
+        sort_array = self.mus - (3.0 * np.sqrt(self.sigma2s))
+        sorted_idxs = np.argsort(-sort_array)[:num_places]
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
+        print(f'{"competitor": <{max_len}}\t{"mu - (3 * sd)"}')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')

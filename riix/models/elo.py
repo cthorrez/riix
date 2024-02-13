@@ -66,7 +66,7 @@ class Elo(OnlineRatingSystem):
 
     def print_leaderboard(self, num_places):
         sorted_idxs = np.argsort(-self.ratings)[:num_places]
-        max_len = np.max([len(comp) for comp in self.competitors] + [10])
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
         print(f'{"competitor": <{max_len}}\t{"rating"}')
         for p_idx in range(num_places):
             comp_idx = sorted_idxs[p_idx]

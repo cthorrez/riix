@@ -6,9 +6,10 @@ https://arxiv.org/abs/1702.00585
 """
 import numpy as np
 from riix.core.base import OnlineRatingSystem
+from riix.models.elo import Elo
 
 
-class TemporalMassey(OnlineRatingSystem):
+class TemporalMassey(Elo):
     rating_dim = 1
 
     def __init__(
@@ -20,7 +21,7 @@ class TemporalMassey(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        OnlineRatingSystem.__init__(self, competitors)
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         if (alpha is not None) and (beta is not None):
             self.alpha = alpha
@@ -83,9 +84,3 @@ class TemporalMassey(OnlineRatingSystem):
             r_2_new = (a_2 * r_2) + (b_2 * r_1) + (b_2 * s_2)
             self.ratings[comp_1] = r_1_new
             self.ratings[comp_2] = r_2_new
-
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-self.ratings)[:k]
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.ratings[comp_idx])

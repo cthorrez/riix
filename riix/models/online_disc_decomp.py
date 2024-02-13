@@ -83,8 +83,10 @@ class OnlineDiscDecomp(OnlineRatingSystem):
             self.us[comp_1] += v_update * v_2
             self.us[comp_2] -= v_update * v_1
 
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-self.us)[:k]
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.us[comp_idx])
+    def print_leaderboard(self, num_places):
+        sorted_idxs = np.argsort(-self.us)[:num_places]
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
+        print(f'{"competitor": <{max_len}}\t{"rating"}')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.us[comp_idx]:.6f}')

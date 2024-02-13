@@ -93,8 +93,11 @@ class vElo(OnlineRatingSystem):
             self.vs[comp_1] = v_1_p
             self.vs[comp_2] = v_2_p
 
-    def print_leaderboard(self, k, competitor_names):
-        sorted_idxs = np.argsort(-(self.mus - 3.0 * np.sqrt(self.vs)))[:k]
-        for k_idx in range(k):
-            comp_idx = sorted_idxs[k_idx]
-            print(competitor_names[comp_idx], self.mus[comp_idx])
+    def print_leaderboard(self, num_places):
+        sort_array = self.mus - (3.0 * np.sqrt(self.vs))
+        sorted_idxs = np.argsort(-sort_array)[:num_places]
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
+        print(f'{"competitor": <{max_len}}\t{"mu - (3 * sd)"}')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')
