@@ -6,16 +6,44 @@ from riix.utils import MatchupDataset
 
 
 class OnlineRatingSystem(ABC):
-    """base class for online rating systems"""
+    """
+    Base class for online rating systems. This class provides a framework for implementing
+    various online rating systems, such as Elo, Glicko, or TrueSkill. It defines the basic
+    structure and common methods that all such systems might share.
 
-    rating_dim: int  # dimension of competitor ratings, eg 1 for Elo rating, 2 for TrueSkill mu and sigma
+    Attributes:
+        rating_dim (int): Dimension of competitor ratings. This could be 1 for systems like Elo,
+                          where each competitor has a single rating value, or more for systems
+                          like TrueSkill that use multiple values (e.g., mean and standard deviation).
+        competitors (list): A list of competitors within the rating system.
+        num_competitors (int): The number of competitors in the system.
+    """
+
+    rating_dim: int
 
     def __init__(self, competitors):
+        """
+        Initializes a new instance of an online rating system with a list of competitors.
+
+        Parameters:
+            competitors (list): A list of competitors to be included in the rating system. Each
+                                competitor should have a structure or identifier compatible with
+                                the specific rating system's requirements.
+        """
         self.competitors = competitors
         self.num_competitors = len(competitors)
 
-    def print_leaderboard(self, num_places=10):
-        raise NotImplementedError
+    def print_leaderboard(self, num_players=None):
+        """
+        Prints the leaderboard of the rating system. This method should be overridden by subclasses
+        to provide specific leaderboard formatting and logic.
+
+        Parameters:
+            num_players (Optional[int]): The number of top players to display on the leaderboard.
+                                          If not specified, all players might be displayed, depending
+                                          on the subclass implementation.
+        """
+        pass  # Implementation should be provided by subclasses.
 
     def predict(
         self,
