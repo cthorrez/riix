@@ -450,12 +450,17 @@
 </span></pre></div>
 
 
-            <div class="docstring"><p>Initializes a new instance of an online rating system with a list of competitors.</p>
+            <div class="docstring"><p>Initializes the Elo rating system with the given parameters.</p>
 
 <p>Parameters:
-    competitors (list): A list of competitors to be included in the rating system. Each
-                        competitor should have a structure or identifier compatible with
-                        the specific rating system's requirements.</p>
+    competitors (list): A list of competitors to be rated within the system.
+    initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
+    k (float, optional): The K-factor, which controls the rate at which ratings change. Defaults to 32.0.
+    alpha (float, optional): Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.
+    update_method (str, optional): Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.
+    dtype: The data type for internal numpy computations. Defaults to np.float64.</p>
+
+<p>Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.</p>
 </div>
 
 
@@ -565,7 +570,16 @@
 </span></pre></div>
 
 
-    
+            <div class="docstring"><p>Returns Elo ratings for competitors in matchups.</p>
+
+<p>Parameters:
+    matchups (np.ndarray): Indices of competitors in the 'ratings' array.
+    **kwargs: Reserved for future use.</p>
+
+<p>Returns:
+    np.ndarray: Elo ratings for specified competitors.</p>
+</div>
+
 
                             </div>
                             <div id="Melo.predict" class="classattr">

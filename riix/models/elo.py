@@ -6,7 +6,8 @@ from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 
 class Elo(OnlineRatingSystem):
-    """The Original Elo Rating system"""
+    """
+    Implements the original Elo rating system."""
 
     rating_dim = 1
 
@@ -19,6 +20,19 @@ class Elo(OnlineRatingSystem):
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
+        """
+        Initializes the Elo rating system with the given parameters.
+
+        Parameters:
+            competitors (list): A list of competitors to be rated within the system.
+            initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
+            k (float, optional): The K-factor, which controls the rate at which ratings change. Defaults to 32.0.
+            alpha (float, optional): Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.
+            update_method (str, optional): Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.
+            dtype: The data type for internal numpy computations. Defaults to np.float64.
+
+        Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.
+        """
         super().__init__(competitors)
         self.k = k
         self.alpha = alpha
@@ -30,7 +44,27 @@ class Elo(OnlineRatingSystem):
             self.update = self.iterative_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
-        """generate predictions"""
+        """
+        Generates predictions for a series of matchups between competitors.
+
+        This method calculates the probability of the first competitor in each matchup winning
+        based on their Elo ratings. The probabilities are computed using the sigmoid function
+        applied to the rating differences, scaled by the alpha parameter.
+
+        Parameters:
+            matchups (np.ndarray): A NumPy array of matchups, where each row represents a matchup
+                                    and contains two integers indicating the indices of the competitors
+                                    in the 'ratings' array.
+            time_step (int, optional): A time step at which the predictions are made. This parameter
+                                    is not used in the current implementation but can be utilized
+                                    for time-dependent predictions. Defaults to None.
+            set_cache (bool, optional): If True, caches the computed probabilities in the 'cache'
+                                        attribute under the key 'probs'. Defaults to False.
+
+        Returns:
+            np.ndarray: A NumPy array containing the predicted probabilities for the first competitor
+                        in each matchup winning against the second.
+        """
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
         probs = sigmoid(self.alpha * (ratings_1 - ratings_2))
@@ -39,10 +73,27 @@ class Elo(OnlineRatingSystem):
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        """
+        Returns Elo ratings for competitors in matchups.
+
+        Parameters:
+            matchups (np.ndarray): Indices of competitors in the 'ratings' array.
+            **kwargs: Reserved for future use.
+
+        Returns:
+            np.ndarray: Elo ratings for specified competitors.
+        """
         return self.ratings[matchups]
 
     def batched_update(self, matchups, outcomes, use_cache):
-        """apply one update based on all of the results of the rating period"""
+        """
+        Apply a single update based on all results of the rating period.
+
+        Parameters:
+            matchups: Matchup information for the rating period.
+            outcomes: Results of the matchups.
+            use_cache: Flag to use cached probabilities or calculate anew.
+        """
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
         if use_cache:
@@ -55,7 +106,14 @@ class Elo(OnlineRatingSystem):
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
     def iterative_update(self, matchups, outcomes, **kwargs):
-        """treat the matchups in the rating period as if they were sequential"""
+        """
+        Treats the matchups in the rating period as sequential events.
+
+        Parameters:
+            matchups: Sequential matchups in the rating period.
+            outcomes: Results of each matchup.
+            **kwargs: Additional parameters (not used).
+        """
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             diff = self.ratings[comp_1] - self.ratings[comp_2]
@@ -65,6 +123,12 @@ class Elo(OnlineRatingSystem):
             self.ratings[comp_2] -= update
 
     def print_leaderboard(self, num_places):
+        """
+        Prints the leaderboard up to the specified number of places.
+
+        Parameters:
+            num_places: Number of top competitors to display.
+        """
         sorted_idxs = np.argsort(-self.ratings)[:num_places]
         max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
         print(f'{"competitor": <{max_len}}\t{"rating"}')
