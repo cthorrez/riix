@@ -262,13 +262,16 @@
 
             <div class="docstring"><p>Initializes the Elo rating system with the given parameters.</p>
 
-<p>Parameters:
-    competitors (list): A list of competitors to be rated within the system.
-    initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
-    k (float, optional): The K-factor, which controls the rate at which ratings change. Defaults to 32.0.
-    alpha (float, optional): Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.
-    update_method (str, optional): Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.
-    dtype: The data type for internal numpy computations. Defaults to np.float64.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>competitors (list):</strong>  A list of competitors to be rated within the system.</li>
+<li><strong>initial_rating (float, optional):</strong>  The initial Elo rating for new competitors. Defaults to 1500.0.</li>
+<li><strong>k (float, optional):</strong>  The K-factor, which controls the rate at which ratings change. Defaults to 32.0.</li>
+<li><strong>alpha (float, optional):</strong>  Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.</li>
+<li><strong>update_method (str, optional):</strong>  Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.</li>
+<li><strong>dtype:</strong>  The data type for internal numpy computations. Defaults to np.float64.</li>
+</ul>
 
 <p>Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.</p>
 </div>
@@ -349,12 +352,18 @@
 
             <div class="docstring"><p>Returns Elo ratings for competitors in matchups.</p>
 
-<p>Parameters:
-    matchups (np.ndarray): Indices of competitors in the 'ratings' array.
-    **kwargs: Reserved for future use.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Returns:
-    np.ndarray: Elo ratings for specified competitors.</p>
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  Indices of competitors in the 'ratings' array.</li>
+<li><strong>**kwargs:</strong>  Reserved for future use.</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>np.ndarray: Elo ratings for specified competitors.</p>
+</blockquote>
 </div>
 
 

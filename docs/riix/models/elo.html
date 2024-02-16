@@ -429,13 +429,16 @@
 
             <div class="docstring"><p>Initializes the Elo rating system with the given parameters.</p>
 
-<p>Parameters:
-    competitors (list): A list of competitors to be rated within the system.
-    initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
-    k (float, optional): The K-factor, which controls the rate at which ratings change. Defaults to 32.0.
-    alpha (float, optional): Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.
-    update_method (str, optional): Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.
-    dtype: The data type for internal numpy computations. Defaults to np.float64.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>competitors (list):</strong>  A list of competitors to be rated within the system.</li>
+<li><strong>initial_rating (float, optional):</strong>  The initial Elo rating for new competitors. Defaults to 1500.0.</li>
+<li><strong>k (float, optional):</strong>  The K-factor, which controls the rate at which ratings change. Defaults to 32.0.</li>
+<li><strong>alpha (float, optional):</strong>  Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.</li>
+<li><strong>update_method (str, optional):</strong>  Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.</li>
+<li><strong>dtype:</strong>  The data type for internal numpy computations. Defaults to np.float64.</li>
+</ul>
 
 <p>Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.</p>
 </div>
@@ -546,19 +549,25 @@
 based on their Elo ratings. The probabilities are computed using the sigmoid function
 applied to the rating differences, scaled by the alpha parameter.</p>
 
-<p>Parameters:
-    matchups (np.ndarray): A NumPy array of matchups, where each row represents a matchup
-                            and contains two integers indicating the indices of the competitors
-                            in the 'ratings' array.
-    time_step (int, optional): A time step at which the predictions are made. This parameter
-                            is not used in the current implementation but can be utilized
-                            for time-dependent predictions. Defaults to None.
-    set_cache (bool, optional): If True, caches the computed probabilities in the 'cache'
-                                attribute under the key 'probs'. Defaults to False.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Returns:
-    np.ndarray: A NumPy array containing the predicted probabilities for the first competitor
-                in each matchup winning against the second.</p>
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  A NumPy array of matchups, where each row represents a matchup
+and contains two integers indicating the indices of the competitors
+in the 'ratings' array.</li>
+<li><strong>time_step (int, optional):</strong>  A time step at which the predictions are made. This parameter
+is not used in the current implementation but can be utilized
+for time-dependent predictions. Defaults to None.</li>
+<li><strong>set_cache (bool, optional):</strong>  If True, caches the computed probabilities in the 'cache'
+attribute under the key 'probs'. Defaults to False.</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>np.ndarray: A NumPy array containing the predicted probabilities for the first competitor
+              in each matchup winning against the second.</p>
+</blockquote>
 </div>
 
 
@@ -591,12 +600,18 @@ applied to the rating differences, scaled by the alpha parameter.</p>
 
             <div class="docstring"><p>Returns Elo ratings for competitors in matchups.</p>
 
-<p>Parameters:
-    matchups (np.ndarray): Indices of competitors in the 'ratings' array.
-    **kwargs: Reserved for future use.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Returns:
-    np.ndarray: Elo ratings for specified competitors.</p>
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  Indices of competitors in the 'ratings' array.</li>
+<li><strong>**kwargs:</strong>  Reserved for future use.</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>np.ndarray: Elo ratings for specified competitors.</p>
+</blockquote>
 </div>
 
 
@@ -636,10 +651,13 @@ applied to the rating differences, scaled by the alpha parameter.</p>
 
             <div class="docstring"><p>Apply a single update based on all results of the rating period.</p>
 
-<p>Parameters:
-    matchups: Matchup information for the rating period.
-    outcomes: Results of the matchups.
-    use_cache: Flag to use cached probabilities or calculate anew.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups:</strong>  Matchup information for the rating period.</li>
+<li><strong>outcomes:</strong>  Results of the matchups.</li>
+<li><strong>use_cache:</strong>  Flag to use cached probabilities or calculate anew.</li>
+</ul>
 </div>
 
 
@@ -676,10 +694,13 @@ applied to the rating differences, scaled by the alpha parameter.</p>
 
             <div class="docstring"><p>Treats the matchups in the rating period as sequential events.</p>
 
-<p>Parameters:
-    matchups: Sequential matchups in the rating period.
-    outcomes: Results of each matchup.
-    **kwargs: Additional parameters (not used).</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups:</strong>  Sequential matchups in the rating period.</li>
+<li><strong>outcomes:</strong>  Results of each matchup.</li>
+<li><strong>**kwargs:</strong>  Additional parameters (not used).</li>
+</ul>
 </div>
 
 
@@ -713,8 +734,11 @@ applied to the rating differences, scaled by the alpha parameter.</p>
 
             <div class="docstring"><p>Prints the leaderboard up to the specified number of places.</p>
 
-<p>Parameters:
-    num_places: Number of top competitors to display.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>num_places:</strong>  Number of top competitors to display.</li>
+</ul>
 </div>
 
 
