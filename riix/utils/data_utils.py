@@ -18,31 +18,33 @@ class MatchupDataset:
         outcome_col: str,
         datetime_col: str = None,
         timestamp_col: str = None,
+        time_step_col: str = None,
         rating_period: str = '1W',
         batch_size: int = None,
         verbose: bool = True,
     ):
         if len(competitor_cols) != 2:
             raise ValueError('must specify exactly 2 competitor columns')
-        if (bool(datetime_col) + bool(timestamp_col)) != 1:
-            raise ValueError('must specify only one of datetime_col and timestamp_col')
+        if (bool(datetime_col) + bool(timestamp_col) + bool(time_step_col)) != 1:
+            raise ValueError('must specify only one of time_step_col, datetime_col, timestamp_col')
 
         self.batch_size = batch_size
 
-        if datetime_col:
-            # get integer time_steps starting from 0 and increasing one per rating period
-            epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
-        if timestamp_col:
-            epoch_times = df[timestamp_col].values.astype(np.int64)
+        if time_step_col:
+            self.time_steps = df[time_step_col].astype(np.int64)
+        else:
+            if datetime_col:
+                # get integer time_steps starting from 0 and increasing one per rating period
+                epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
+            if timestamp_col:
+                epoch_times = df[timestamp_col].values.astype(np.int64)
 
-        first_time = epoch_times[0]
-        epoch_times = epoch_times - first_time
-        period_delta = int(pd.Timedelta(rating_period).total_seconds())
-        self.time_steps = epoch_times // period_delta
+            first_time = epoch_times[0]
+            epoch_times = epoch_times - first_time
+            period_delta = int(pd.Timedelta(rating_period).total_seconds())
+            self.time_steps = epoch_times // period_delta
         _, start_time_step_idxs = np.unique(self.time_steps, return_index=True)
         self.end_time_step_idxs = np.append(start_time_step_idxs[1:], self.time_steps.shape[0])
-
-        del epoch_times, first_time, period_delta  # free up memory before moving on
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -63,7 +65,7 @@ class MatchupDataset:
                 print(f'{self.num_batches} batches of length {batch_size}')
         else:
             self.iter_fn = self.iter_by_rating_period
-            if verbose:
+            if verbose and (time_step_col is None):
                 print(f'{np.max(self.time_steps) + 1} rating periods of length {rating_period}')
 
     def iter_by_rating_period(self):
