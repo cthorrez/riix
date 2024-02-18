@@ -99,6 +99,20 @@ class MatchupDataset:
     def __len__(self):
         return self.matchups.shape[0]
 
+    @classmethod
+    def load_from_npz(cls, path):
+        dataset = cls.__new__(cls)
+        time_steps, matchups, outcomes = np.load(path).values()
+        dataset.time_steps = time_steps
+        _, start_time_step_idxs = np.unique(time_steps, return_index=True)
+        dataset.end_time_step_idxs = np.append(start_time_step_idxs[1:], time_steps.shape[0])
+        dataset.outcomes = outcomes
+        dataset.competitors = np.unique(matchups)
+        dataset.matchups = np.searchsorted(dataset.competitors, matchups)
+        dataset.num_competitors = dataset.competitors.shape[0]
+        dataset.iter_fn = dataset.iter_by_rating_period
+        return dataset
+
 
 def split_matchup_dataset(dataset, test_fraction=0.2):
     train_dataset = deepcopy(dataset)
