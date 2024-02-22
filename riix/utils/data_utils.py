@@ -44,8 +44,10 @@ class MatchupDataset:
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
 
-        start_time_step_idxs = np.unique(self.time_steps, return_index=True)[1][1:]
-        self.end_time_step_idxs = np.append(start_time_step_idxs, self.time_steps.shape[0])
+        _, self.time_step_start_idxs, time_step_counts = np.unique(
+            self.time_steps, return_index=True, return_counts=True
+        )
+        self.time_step_end_idxs = self.time_step_start_idxs + time_step_counts
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -71,12 +73,10 @@ class MatchupDataset:
 
     def iter_by_rating_period(self):
         """iterate batches one rating period at a time"""
-        period_start_idx = 0
-        for period_end_idx in self.end_time_step_idxs:
-            time_step = self.time_steps[period_start_idx]
-            matchups = self.matchups[period_start_idx:period_end_idx]
-            outcomes = self.outcomes[period_start_idx:period_end_idx]
-            period_start_idx = period_end_idx
+        for start_idx, end_idx in zip(self.time_step_start_idxs, self.time_step_end_idxs):
+            time_step = self.time_steps[start_idx]
+            matchups = self.matchups[start_idx:end_idx, :]
+            outcomes = self.outcomes[start_idx:end_idx]
             yield matchups, outcomes, time_step
 
     def iter_by_batch(self, batch_size=None):
@@ -125,15 +125,18 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
     train_dataset.matchups = dataset.matchups[:num_train_matchups, :]
     train_dataset.outcomes = dataset.outcomes[:num_train_matchups]
     train_dataset.time_steps = dataset.time_steps[:num_train_matchups]
-    train_start_time_step_idxs = np.unique(train_dataset.time_steps, return_index=True)[1][1:]
-    train_dataset.end_time_step_idxs = np.append(train_start_time_step_idxs, train_dataset.time_steps.shape[0])
-    num_train_time_steps = train_dataset.end_time_step_idxs.shape[0]
+    _, train_dataset.time_step_start_idxs, train_time_step_counts = np.unique(
+        train_dataset.time_steps, return_index=True, return_counts=True
+    )
+    train_dataset.time_step_end_idxs = train_dataset.time_step_start_idxs + train_time_step_counts
 
     test_dataset.matchups = dataset.matchups[num_train_matchups:, :]
     test_dataset.outcomes = dataset.outcomes[num_train_matchups:]
     test_dataset.time_steps = dataset.time_steps[num_train_matchups:]
-    test_dataset.end_time_step_idxs = dataset.end_time_step_idxs[num_train_time_steps:] - num_train_matchups
-
+    _, test_dataset.time_step_start_idxs, test_time_step_counts = np.unique(
+        test_dataset.time_steps, return_index=True, return_counts=True
+    )
+    test_dataset.time_step_end_idxs = test_dataset.time_step_start_idxs + test_time_step_counts
     return train_dataset, test_dataset
 
 
