@@ -43,8 +43,9 @@ class MatchupDataset:
             epoch_times = epoch_times - first_time
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
-        _, start_time_step_idxs = np.unique(self.time_steps, return_index=True)
-        self.end_time_step_idxs = np.append(start_time_step_idxs[1:], self.time_steps.shape[0])
+
+        start_time_step_idxs = np.unique(self.time_steps, return_index=True)[1][1:]
+        self.end_time_step_idxs = np.append(start_time_step_idxs, self.time_steps.shape[0])
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -104,8 +105,8 @@ class MatchupDataset:
         dataset = cls.__new__(cls)
         time_steps, matchups, outcomes = np.load(path).values()
         dataset.time_steps = time_steps
-        _, start_time_step_idxs = np.unique(time_steps, return_index=True)
-        dataset.end_time_step_idxs = np.append(start_time_step_idxs[1:], time_steps.shape[0])
+        start_time_step_idxs = np.unique(time_steps, return_index=True)[1][1:]
+        dataset.end_time_step_idxs = np.append(start_time_step_idxs, time_steps.shape[0])
         dataset.outcomes = outcomes
         dataset.competitors = np.unique(matchups)
         dataset.matchups = np.searchsorted(dataset.competitors, matchups)
@@ -124,8 +125,8 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
     train_dataset.matchups = dataset.matchups[:num_train_matchups, :]
     train_dataset.outcomes = dataset.outcomes[:num_train_matchups]
     train_dataset.time_steps = dataset.time_steps[:num_train_matchups]
-    _, train_start_time_step_idxs = np.unique(train_dataset.time_steps, return_index=True)
-    train_dataset.end_time_step_idxs = np.append(train_start_time_step_idxs[1:], train_dataset.time_steps.shape[0])
+    train_start_time_step_idxs = np.unique(train_dataset.time_steps, return_index=True)[1][1:]
+    train_dataset.end_time_step_idxs = np.append(train_start_time_step_idxs, train_dataset.time_steps.shape[0])
     num_train_time_steps = train_dataset.end_time_step_idxs.shape[0]
 
     test_dataset.matchups = dataset.matchups[num_train_matchups:, :]
