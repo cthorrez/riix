@@ -73,7 +73,7 @@ class MatchupDataset:
 
     def iter_by_rating_period(self):
         """iterate batches one rating period at a time"""
-        for start_idx, end_idx in zip(self.time_step_start_idxs, self.time_step_end_idxs):
+        for start_idx, end_idx in np.nditer(op=(self.time_step_start_idxs, self.time_step_end_idxs)):
             time_step = self.time_steps[start_idx]
             matchups = self.matchups[start_idx:end_idx, :]
             outcomes = self.outcomes[start_idx:end_idx]
