@@ -12,12 +12,28 @@ PI2 = math.pi**2.0
 
 
 def g(rating_dev):
-    """the g function"""
+    """
+    Calculates the g function as part of the Glicko rating system.
+
+    This function is used to scale the rating deviation, affecting the impact of a game outcome
+    as a function of the opponent's rating volatility.
+
+    Parameters:
+        rating_dev (float): The rating deviation of an opponent.
+
+    Returns:
+        float: The calculated g function result, used to scale the expected score between players.
+    """
     return 1.0 / np.sqrt(1.0 + (Q2_3 * np.square(rating_dev)) / PI2)
 
 
 class Glicko(OnlineRatingSystem):
-    """the og glicko rating system shoutout to Mark"""
+    """
+    Implements the original Glicko rating system, designed by Mark Glickman.
+
+    This rating system is an improvement over the Elo rating system, introducing the concept of rating
+    deviation and volatility to better account for the uncertainty in a player's true strength.
+    """
 
     rating_dim = 2
 
@@ -31,6 +47,18 @@ class Glicko(OnlineRatingSystem):
         update_method='iterative',
         do_weird_prob=False,
     ):
+        """
+        Initializes the Glicko rating system with the given parameters.
+
+        Parameters:
+            competitors (list): A list of competitors to be rated within the system.
+            initial_rating (float, optional): The initial Glicko rating for new competitors. Defaults to 1500.0.
+            initial_rating_dev (float, optional): The initial rating deviation for new competitors. Defaults to 350.0.
+            c (float, optional): Constant used to adjust the rate of change of the rating deviation. Defaults to 63.2.
+            dtype (data-type, optional): The desired data-type for the ratings and deviations arrays. Defaults to np.float64.
+            update_method (str, optional): Method used for updating ratings ('iterative' or another specified method). Defaults to 'iterative'.
+            do_weird_prob (bool, optional): If set to True, applies an alternative probability calculation. Defaults to False.
+        """
         super().__init__(competitors)
         self.initial_rating_dev = initial_rating_dev
         self.c2 = c**2.0
@@ -62,6 +90,16 @@ class Glicko(OnlineRatingSystem):
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
+        """
+        Returns Glicko ratings for competitors in matchups.
+
+        Parameters:
+            matchups (np.ndarray): Indices of competitors in the 'ratings' array.
+            **kwargs: Reserved for future use.
+
+        Returns:
+            np.ndarray: Glicko ratings for specified competitors.
+        """
         means = self.ratings[matchups]
         devs = self.rating_devs[matchups]
         ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
@@ -121,6 +159,12 @@ class Glicko(OnlineRatingSystem):
             self.rating_devs[comp_2] = math.sqrt(1.0 / r2_denom)
 
     def print_leaderboard(self, num_places):
+        """
+        Prints the leaderboard up to the specified number of places.
+
+        Parameters:
+            num_places: Number of top competitors to display.
+        """
         sort_array = self.ratings - (3.0 * self.rating_devs)
         sorted_idxs = np.argsort(-sort_array)[:num_places]
         max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)

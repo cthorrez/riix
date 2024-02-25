@@ -28,6 +28,11 @@
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
 
+            <h2>Contents</h2>
+            <ul>
+  <li><a href="#models-module">Models Module</a></li>
+</ul>
+
 
             <h2>Submodules</h2>
             <ul>
@@ -59,10 +64,64 @@
                     <h1 class="modulename">
 <a href="./../riix.html">riix</a><wbr>.models    </h1>
 
-                
-                
-                
-                
+                        <div class="docstring"><h1 id="models-module">Models Module</h1>
+
+<p>This module contains implementations of various rating systems used to evaluate and compare the performance of competitors in games or sports. Each system provides a unique approach to calculating ratings, taking into account factors such as game outcomes, player volatility, and more.</p>
+
+<p>Included Rating Systems:</p>
+
+<ul>
+<li>Elo: A simple and widely used rating system that adjusts player ratings based on match outcomes.</li>
+<li>Elomentum: Enhances the Elo system by incorporating momentum into rating adjustments.</li>
+<li>Glicko: An advanced system extending Elo by introducing rating deviation and volatility.</li>
+<li>Iterative Markov: Uses Markov assumptions for iterative rating updates.</li>
+<li>Melo: A variation of the Elo rating system with multidimensional representations.</li>
+<li>Online Disc Decomposition: A machine learning approach for rating updates.</li>
+<li>SKF: Implements simplified Kalman filters for rating estimation.</li>
+<li>Temporal Massey: A temporal adaptation of the Massey rating system.</li>
+<li>TrueSkill: A Bayesian rating system developed by Microsoft.</li>
+<li>Velo: A variant of the Elo system with variance.</li>
+<li>Weng-Lin Bradley-Terry: A Bayesian online rating system using the Bradley-Terry (logistic) model.</li>
+<li>Weng-Lin Thurstone-Mosteller: A Bayesian online rating system using the Thurstone-Mosteller (gaussian) model.</li>
+</ul>
+
+<p>Each rating system is implemented as a class with methods for initializing the system, updating player ratings based on game outcomes, and calculating expected scores between players. These classes are designed for use in online rating systems where ratings are updated continuously as games are played.</p>
+
+<p>This module also provides utility functions and constants used across different rating systems, such as mathematical functions for calculating expected scores and scaling factors.</p>
+</div>
+
+                        <input id="mod-models-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+
+                        <label class="view-source-button" for="mod-models-view-source"><span>View Source</span></label>
+
+                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="sd">Models Module</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="sd">=============</span>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">This module contains implementations of various rating systems used to evaluate and compare the performance of competitors in games or sports. Each system provides a unique approach to calculating ratings, taking into account factors such as game outcomes, player volatility, and more.</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">Included Rating Systems:</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="sd">- Elo: A simple and widely used rating system that adjusts player ratings based on match outcomes.</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="sd">- Elomentum: Enhances the Elo system by incorporating momentum into rating adjustments.</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="sd">- Glicko: An advanced system extending Elo by introducing rating deviation and volatility.</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a><span class="sd">- Iterative Markov: Uses Markov assumptions for iterative rating updates.</span>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="sd">- Melo: A variation of the Elo rating system with multidimensional representations.</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="sd">- Online Disc Decomposition: A machine learning approach for rating updates.</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="sd">- SKF: Implements simplified Kalman filters for rating estimation.</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="sd">- Temporal Massey: A temporal adaptation of the Massey rating system.</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">- TrueSkill: A Bayesian rating system developed by Microsoft.</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="sd">- Velo: A variant of the Elo system with variance.</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="sd">- Weng-Lin Bradley-Terry: A Bayesian online rating system using the Bradley-Terry (logistic) model.</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="sd">- Weng-Lin Thurstone-Mosteller: A Bayesian online rating system using the Thurstone-Mosteller (gaussian) model.</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="sd">Each rating system is implemented as a class with methods for initializing the system, updating player ratings based on game outcomes, and calculating expected scores between players. These classes are designed for use in online rating systems where ratings are updated continuously as games are played.</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="sd">This module also provides utility functions and constants used across different rating systems, such as mathematical functions for calculating expected scores and scaling factors.</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span></pre></div>
+
+
             </section>
     </main>
 <script>
