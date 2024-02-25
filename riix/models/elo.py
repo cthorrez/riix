@@ -123,12 +123,6 @@ class Elo(OnlineRatingSystem):
             self.ratings[comp_2] -= update
 
     def print_leaderboard(self, num_places):
-        """
-        Prints the leaderboard up to the specified number of places.
-
-        Parameters:
-            num_places: Number of top competitors to display.
-        """
         sorted_idxs = np.argsort(-self.ratings)[:num_places]
         max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
         print(f'{"competitor": <{max_len}}\t{"rating"}')

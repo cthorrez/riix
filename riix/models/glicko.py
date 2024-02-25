@@ -159,12 +159,6 @@ class Glicko(OnlineRatingSystem):
             self.rating_devs[comp_2] = math.sqrt(1.0 / r2_denom)
 
     def print_leaderboard(self, num_places):
-        """
-        Prints the leaderboard up to the specified number of places.
-
-        Parameters:
-            num_places: Number of top competitors to display.
-        """
         sort_array = self.ratings - (3.0 * self.rating_devs)
         sorted_idxs = np.argsort(-sort_array)[:num_places]
         max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)

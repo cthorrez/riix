@@ -33,15 +33,12 @@ class OnlineRatingSystem(ABC):
         self.competitors = competitors
         self.num_competitors = len(competitors)
 
-    def print_leaderboard(self, num_players=None):
+    def print_leaderboard(self, num_places=None):
         """
-        Prints the leaderboard of the rating system. This method should be overridden by subclasses
-        to provide specific leaderboard formatting and logic.
+        Prints the leaderboard of the rating system.
 
         Parameters:
-            num_players (Optional[int]): The number of top players to display on the leaderboard.
-                                          If not specified, all players might be displayed, depending
-                                          on the subclass implementation.
+            num_places int: The number of top places to display on the leaderboard.
         """
         pass  # Implementation should be provided by subclasses.
 
