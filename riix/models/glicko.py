@@ -3,28 +3,7 @@ import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import sigmoid, sigmoid_scalar
-
-
-Q = math.log(10.0) / 400.0
-Q2 = Q**2.0
-Q2_3 = 3.0 * Q2
-PI2 = math.pi**2.0
-
-
-def g(rating_dev):
-    """
-    Calculates the g function as part of the Glicko rating system.
-
-    This function is used to scale the rating deviation, affecting the impact of a game outcome
-    as a function of the opponent's rating volatility.
-
-    Parameters:
-        rating_dev (float): The rating deviation of an opponent.
-
-    Returns:
-        float: The calculated g function result, used to scale the expected score between players.
-    """
-    return 1.0 / np.sqrt(1.0 + (Q2_3 * np.square(rating_dev)) / PI2)
+from riix.utils.constants import PI2, Q, Q2, Q2_3
 
 
 class Glicko(OnlineRatingSystem):
@@ -72,6 +51,22 @@ class Glicko(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
+    @staticmethod
+    def g(rating_dev):
+        """
+        Calculates the g function as part of the Glicko rating system.
+
+        This function is used to scale the rating deviation, affecting the impact of a game outcome
+        as a function of the opponent's rating volatility.
+
+        Parameters:
+            rating_dev (float): The rating deviation of an opponent.
+
+        Returns:
+            float: The calculated g function result, used to scale the expected score between players.
+        """
+        return 1.0 / np.sqrt(1.0 + (Q2_3 * np.square(rating_dev)) / PI2)
+
     # TODO should Glicko probs incorporate the dev increase?
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
@@ -85,7 +80,7 @@ class Glicko(OnlineRatingSystem):
         else:
             rating_devs_1 = self.rating_devs[matchups[:, 0]]
             rating_devs_2 = self.rating_devs[matchups[:, 1]]
-            combined_dev = g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
+            combined_dev = self.g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
             probs = sigmoid(Q * combined_dev * rating_diffs)
         return probs
 
@@ -121,7 +116,7 @@ class Glicko(OnlineRatingSystem):
 
         ratings = self.ratings[matchups]
         rating_diffs = ratings[:, 0] - ratings[:, 1]
-        g_rating_devs = g(self.rating_devs[matchups])
+        g_rating_devs = self.g(self.rating_devs[matchups])
         probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
 
@@ -143,7 +138,7 @@ class Glicko(OnlineRatingSystem):
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            g_rating_devs = g(self.rating_devs[matchups[idx]])
+            g_rating_devs = self.g(self.rating_devs[matchups[idx]])
             g_rating_devs_2 = np.square(g_rating_devs)
             prob_1 = sigmoid_scalar(Q * g_rating_devs[1] * rating_diff)
             prob_2 = sigmoid_scalar(-Q * g_rating_devs[0] * rating_diff)

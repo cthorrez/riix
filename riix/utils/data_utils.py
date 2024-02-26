@@ -5,6 +5,7 @@ import time
 from typing import List
 from copy import deepcopy
 import numpy as np
+import scipy
 import pandas as pd
 
 
@@ -44,10 +45,14 @@ class MatchupDataset:
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
 
-        _, self.time_step_start_idxs, time_step_counts = np.unique(
-            self.time_steps, return_index=True, return_counts=True
-        )
-        self.time_step_end_idxs = self.time_step_start_idxs + time_step_counts
+        # _, self.time_step_start_idxs, time_step_counts = np.unique(
+        #     self.time_steps, return_index=True, return_counts=True
+        # )
+        # self.time_step_end_idxs = self.time_step_start_idxs + time_step_counts
+        self.unique_time_steps = np.unique(self.time_steps)
+        self.time_slices = scipy.ndimage.find_objects(
+            self.time_steps + 1
+        )  # LOL! https://codereview.stackexchange.com/a/60887
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -73,10 +78,10 @@ class MatchupDataset:
 
     def iter_by_rating_period(self):
         """iterate batches one rating period at a time"""
-        for start_idx, end_idx in np.nditer(op=(self.time_step_start_idxs, self.time_step_end_idxs)):
-            time_step = self.time_steps[start_idx]
-            matchups = self.matchups[start_idx:end_idx, :]
-            outcomes = self.outcomes[start_idx:end_idx]
+        for time_step in np.nditer(op=self.unique_time_steps):
+            idx_slice = self.time_slices[time_step]
+            matchups = self.matchups[idx_slice]
+            outcomes = self.outcomes[idx_slice]
             yield matchups, outcomes, time_step
 
     def iter_by_batch(self, batch_size=None):
@@ -125,18 +130,23 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
     train_dataset.matchups = dataset.matchups[:num_train_matchups, :]
     train_dataset.outcomes = dataset.outcomes[:num_train_matchups]
     train_dataset.time_steps = dataset.time_steps[:num_train_matchups]
-    _, train_dataset.time_step_start_idxs, train_time_step_counts = np.unique(
-        train_dataset.time_steps, return_index=True, return_counts=True
-    )
-    train_dataset.time_step_end_idxs = train_dataset.time_step_start_idxs + train_time_step_counts
+    # _, train_dataset.time_step_start_idxs, train_time_step_counts = np.unique(
+    #     train_dataset.time_steps, return_index=True, return_counts=True
+    # )
+    # train_dataset.time_step_end_idxs = train_dataset.time_step_start_idxs + train_time_step_counts
+    train_dataset.unique_time_steps = np.unique(train_dataset.time_steps)
+    train_dataset.time_slices = scipy.ndimage.find_objects(train_dataset.time_steps + 1)
 
     test_dataset.matchups = dataset.matchups[num_train_matchups:, :]
     test_dataset.outcomes = dataset.outcomes[num_train_matchups:]
     test_dataset.time_steps = dataset.time_steps[num_train_matchups:]
-    _, test_dataset.time_step_start_idxs, test_time_step_counts = np.unique(
-        test_dataset.time_steps, return_index=True, return_counts=True
-    )
-    test_dataset.time_step_end_idxs = test_dataset.time_step_start_idxs + test_time_step_counts
+    # _, test_dataset.time_step_start_idxs, test_time_step_counts = np.unique(
+    #     test_dataset.time_steps, return_index=True, return_counts=True
+    # )
+    # test_dataset.time_step_end_idxs = test_dataset.time_step_start_idxs + test_time_step_counts
+    test_dataset.unique_time_steps = np.unique(test_dataset.time_steps)
+    test_dataset.time_slices = scipy.ndimage.find_objects(test_dataset.time_steps + 1)
+
     return train_dataset, test_dataset
 
 
