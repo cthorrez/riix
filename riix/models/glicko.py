@@ -85,16 +85,6 @@ class Glicko(OnlineRatingSystem):
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        """
-        Returns Glicko ratings for competitors in matchups.
-
-        Parameters:
-            matchups (np.ndarray): Indices of competitors in the 'ratings' array.
-            **kwargs: Reserved for future use.
-
-        Returns:
-            np.ndarray: Glicko ratings for specified competitors.
-        """
         means = self.ratings[matchups]
         devs = self.rating_devs[matchups]
         ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)

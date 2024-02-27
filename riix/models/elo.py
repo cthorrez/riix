@@ -73,16 +73,6 @@ class Elo(OnlineRatingSystem):
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        """
-        Returns Elo ratings for competitors in matchups.
-
-        Parameters:
-            matchups (np.ndarray): Indices of competitors in the 'ratings' array.
-            **kwargs: Reserved for future use.
-
-        Returns:
-            np.ndarray: Elo ratings for specified competitors.
-        """
         return self.ratings[matchups]
 
     def batched_update(self, matchups, outcomes, use_cache):

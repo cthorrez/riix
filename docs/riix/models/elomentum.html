@@ -552,19 +552,20 @@ Invented by Clayton Thorrez (me)</p>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Returns Elo ratings for competitors in matchups.</p>
+            <div class="docstring"><p>Returns the ratings for competitors at the timestep of the matchups
+Useful when using pre-match ratings as features in downstream ML pipelines</p>
 
 <h6 id="arguments">Arguments:</h6>
 
 <ul>
-<li><strong>matchups (np.ndarray):</strong>  Indices of competitors in the 'ratings' array.</li>
-<li><strong>**kwargs:</strong>  Reserved for future use.</li>
+<li><strong>matchups (np.ndarray of shape (n,2)):</strong>  competitor indices</li>
+<li>time_step (optional int)</li>
 </ul>
 
 <h6 id="returns">Returns:</h6>
 
 <blockquote>
-  <p>np.ndarray: Elo ratings for specified competitors.</p>
+  <p>np.ndarray of shape (n,2): ratings for specified competitors</p>
 </blockquote>
 </div>
 
@@ -613,7 +614,19 @@ Invented by Clayton Thorrez (me)</p>
 </span></pre></div>
 
 
-    
+            <div class="docstring"><p>Updates player ratings based on new matchup results.
+This general update function processes a set of matchups and their outcomes to adjust player ratings within the model.</p>
+
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  Array of matchups, where each matchup is represented by a pair of player indices</li>
+<li><strong>outcomes (np.ndarray):</strong>  Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).</li>
+<li><strong>time_step (int):</strong>  The current time step or period of the rating update, used to adjust ratings over time.</li>
+<li><strong>use_cache (bool, optional):</strong>  Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.</li>
+</ul>
+</div>
+
 
                             </div>
                             <div id="EloMentum.get_momentum_update" class="classattr">

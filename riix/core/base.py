@@ -50,10 +50,55 @@ class OnlineRatingSystem(ABC):
     ):
         raise NotImplementedError
 
-    def update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: int, use_cache: bool = False):
+    def update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: Optional[int], use_cache: bool = False):
+        """
+        Updates player ratings based on new matchup results.
+        This general update function processes a set of matchups and their outcomes to adjust player ratings within the model.
+
+        Parameters:
+            matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
+            outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
+            time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
+            use_cache (bool, optional): Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.
+        """
+        raise NotImplementedError
+
+    def batched_update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: int, use_cache=False, **kwargs):
+        """
+        Performs a batched update of player ratings based on a series of matchups and their outcomes within a single time step.
+        This method processes all matchups as occuring simultaneously, leveraging vectorized operations for efficiency
+            Parameters:
+            matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
+            outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
+            time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
+            use_cache (bool, optional): Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.
+        """
+        raise NotImplementedError
+
+    def iterative_update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: int, use_cache=False, **kwargs):
+        """
+        Updates player ratings iteratively for each matchup and outcome pair within a given time step treating them as if they were sequential
+        This can be slower than batch processing but potentially more accurate by avoiding certain numerical issues
+            Parameters:
+            matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
+            outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
+            time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
+            use_cache (bool, optional): Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.
+        """
         raise NotImplementedError
 
     def get_pre_match_ratings(self, matchups: np.ndarray, time_step: Optional[int]) -> np.ndarray:
+        """
+        Returns the ratings for competitors at the timestep of the matchups
+        Useful when using pre-match ratings as features in downstream ML pipelines
+
+        Parameters:
+            matchups (np.ndarray of shape (n,2)): competitor indices
+            time_step (optional int)
+
+        Returns:
+            np.ndarray of shape (n,2): ratings for specified competitors
+        """
         raise NotImplementedError
 
     def fit_batch(

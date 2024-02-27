@@ -512,7 +512,23 @@ the specific rating system's requirements.</li>
 </span></pre></div>
 
 
-    
+            <div class="docstring"><p>Returns the ratings for competitors at the timestep of the matchups
+Useful when using pre-match ratings as features in downstream ML pipelines</p>
+
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups (np.ndarray of shape (n,2)):</strong>  competitor indices</li>
+<li>time_step (optional int)</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>np.ndarray of shape (n,2): ratings for specified competitors</p>
+</blockquote>
+</div>
+
 
                             </div>
                             <div id="vElo.batched_update" class="classattr">
