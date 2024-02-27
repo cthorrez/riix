@@ -41,7 +41,6 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         return ratings
 
     def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
-        """generate predictions"""
         us_1 = self.us[matchups[:, 0]]
         us_2 = self.us[matchups[:, 1]]
         vs_1 = self.vs[matchups[:, 0]]
@@ -52,7 +51,6 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         return probs
 
     def batched_update(self, matchups, outcomes, use_cache, **kwargs):
-        """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
         if use_cache:
@@ -65,7 +63,6 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
     def iterative_update(self, matchups, outcomes, **kwargs):
-        """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             u_1, u_2 = self.us[matchups[idx]]
