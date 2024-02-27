@@ -67,7 +67,8 @@ class OnlineRatingSystem(ABC):
         """
         Performs a batched update of player ratings based on a series of matchups and their outcomes within a single time step.
         This method processes all matchups as occuring simultaneously, leveraging vectorized operations for efficiency
-            Parameters:
+
+        Parameters:
             matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
             outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
             time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
@@ -79,7 +80,8 @@ class OnlineRatingSystem(ABC):
         """
         Updates player ratings iteratively for each matchup and outcome pair within a given time step treating them as if they were sequential
         This can be slower than batch processing but potentially more accurate by avoiding certain numerical issues
-            Parameters:
+
+        Parameters:
             matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
             outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
             time_step (int): The current time step or period of the rating update, used to adjust ratings over time.

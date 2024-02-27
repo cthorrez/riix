@@ -506,12 +506,16 @@ Useful when using pre-match ratings as features in downstream ML pipelines</p>
 
 
             <div class="docstring"><p>Performs a batched update of player ratings based on a series of matchups and their outcomes within a single time step.
-This method processes all matchups as occuring simultaneously, leveraging vectorized operations for efficiency
-    Parameters:
-    matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
-    outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
-    time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
-    use_cache (bool, optional): Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.</p>
+This method processes all matchups as occuring simultaneously, leveraging vectorized operations for efficiency</p>
+
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  Array of matchups, where each matchup is represented by a pair of player indices</li>
+<li><strong>outcomes (np.ndarray):</strong>  Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).</li>
+<li><strong>time_step (int):</strong>  The current time step or period of the rating update, used to adjust ratings over time.</li>
+<li><strong>use_cache (bool, optional):</strong>  Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.</li>
+</ul>
 </div>
 
 
@@ -548,12 +552,16 @@ This method processes all matchups as occuring simultaneously, leveraging vector
 
 
             <div class="docstring"><p>Updates player ratings iteratively for each matchup and outcome pair within a given time step treating them as if they were sequential
-This can be slower than batch processing but potentially more accurate by avoiding certain numerical issues
-    Parameters:
-    matchups (np.ndarray): Array of matchups, where each matchup is represented by a pair of player indices
-    outcomes (np.ndarray): Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).
-    time_step (int): The current time step or period of the rating update, used to adjust ratings over time.
-    use_cache (bool, optional): Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.</p>
+This can be slower than batch processing but potentially more accurate by avoiding certain numerical issues</p>
+
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>matchups (np.ndarray):</strong>  Array of matchups, where each matchup is represented by a pair of player indices</li>
+<li><strong>outcomes (np.ndarray):</strong>  Array of outcomes corresponding to each matchup represented as win (1), loss (0), or draw (0.5).</li>
+<li><strong>time_step (int):</strong>  The current time step or period of the rating update, used to adjust ratings over time.</li>
+<li><strong>use_cache (bool, optional):</strong>  Whether to use values cached during a prior call to predict() to speed up calculations. Defaults to False.</li>
+</ul>
 </div>
 
 
