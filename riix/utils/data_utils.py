@@ -110,8 +110,8 @@ class MatchupDataset:
         dataset = cls.__new__(cls)
         time_steps, matchups, outcomes = np.load(path).values()
         dataset.time_steps = time_steps
-        start_time_step_idxs = np.unique(time_steps, return_index=True)[1][1:]
-        dataset.end_time_step_idxs = np.append(start_time_step_idxs, time_steps.shape[0])
+        dataset.unique_time_steps = np.unique(dataset.time_steps)
+        dataset.time_slices = scipy.ndimage.find_objects(dataset.time_steps + 1)
         dataset.outcomes = outcomes
         dataset.competitors = np.unique(matchups)
         dataset.matchups = np.searchsorted(dataset.competitors, matchups)
