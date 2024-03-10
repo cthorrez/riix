@@ -1,4 +1,4 @@
-"""Elo"""
+"""The Elo rating system"""
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
@@ -7,7 +7,8 @@ from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 class Elo(OnlineRatingSystem):
     """
-    Implements the original Elo rating system."""
+    Implements the original Elo rating system.
+    """
 
     rating_dim = 1
 
