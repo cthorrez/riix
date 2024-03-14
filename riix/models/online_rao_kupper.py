@@ -1,7 +1,8 @@
 """The Online Rao Kupper rating system"""
 import numpy as np
+import math
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid_scalar
+from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 
 class OnlineRaoKupper(OnlineRatingSystem):
@@ -14,9 +15,10 @@ class OnlineRaoKupper(OnlineRatingSystem):
     def __init__(
         self,
         competitors: list,
-        initial_rating: float = 0.0,
-        theta: float = 1.5,
-        step_size: float = 1e-3,
+        initial_rating: float = 1500.0,  # this does nothing
+        theta: float = 2.5,
+        step_size: float = 32.0,
+        temperature: float = math.log(10.0) / 400.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
@@ -29,9 +31,10 @@ class OnlineRaoKupper(OnlineRatingSystem):
         """
         super().__init__(competitors)
         self.theta = theta
+        self.log_theta = math.log(theta)
         self.step_size = step_size
+        self.temperature = temperature
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-        self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
         elif update_method == 'iterative':
@@ -54,11 +57,9 @@ class OnlineRaoKupper(OnlineRatingSystem):
             np.ndarray: A NumPy array containing the predicted probabilities for the first competitor
                         in each matchup winning against the second.
         """
-        ratings_1 = np.exp(self.ratings[matchups[:, 0]])
-        ratings_2 = np.exp(self.ratings[matchups[:, 1]])
-        probs = ratings_1 + (self.theta * ratings_2)
-        if set_cache:
-            self.cache['probs'] = probs
+        ratings_1 = self.ratings[matchups[:, 0]]
+        ratings_2 = self.ratings[matchups[:, 1]]
+        probs = sigmoid(self.temperature * (ratings_1 - ratings_2))
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
@@ -73,16 +74,7 @@ class OnlineRaoKupper(OnlineRatingSystem):
             outcomes: Results of the matchups.
             use_cache: Flag to use cached probabilities or calculate anew.
         """
-        active_in_period = np.unique(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
-        if use_cache:
-            probs = self.cache['probs']
-        else:
-            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
-        per_match_diff = (outcomes - probs)[:, None]
-        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
-        self.ratings[active_in_period] += self.k * per_competitor_diff
+        raise NotImplementedError
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """
@@ -95,11 +87,28 @@ class OnlineRaoKupper(OnlineRatingSystem):
         """
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
-            diff = self.ratings[comp_1] - self.ratings[comp_2]
-            prob = sigmoid_scalar(self.alpha * diff)
-            update = self.k * (outcomes[idx] - prob)
-            self.ratings[comp_1] += update
-            self.ratings[comp_2] -= update
+            r_1 = self.ratings[comp_1]
+            r_2 = self.ratings[comp_2]
+            p_1 = sigmoid_scalar(self.temperature * (r_1 - r_2 - self.log_theta))
+            p_2 = sigmoid_scalar(self.temperature * (r_2 - r_1 - self.log_theta))
+            if outcomes[idx] == 1.0:
+                g_1 = 1.0 - p_1
+                g_2 = -p_2
+            elif outcomes[idx] == 0.0:
+                g_1 = -p_1
+                g_2 = 1.0 - p_2
+            else:
+                g_1 = 0.5 - p_1
+                g_2 = 0.5 - p_2
+
+            # else:  # outcomes[idx] == 0.5
+            #     p_1 = sigmoid_scalar(self.temperature * (r_1 - r_2 - self.log_theta))
+            #     p_2 = sigmoid_scalar(self.temperature * (r_2 - r_1 - self.log_theta))
+            #     prob = 1.0 - p_1 - p_2
+            #     grad = 0.5 - prob
+
+            self.ratings[comp_1] += self.step_size * g_1
+            self.ratings[comp_2] += self.step_size * g_2
 
     def print_leaderboard(self, num_places):
         sorted_idxs = np.argsort(-self.ratings)[:num_places]
