@@ -1,16 +1,15 @@
-"""The Online Rao Kupper rating system"""
+"""The Elo-Davidson rating system"""
 import numpy as np
 import math
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import sigmoid
 
 
-class OnlineRaoKupper(OnlineRatingSystem):
+class EloDavidson(OnlineRatingSystem):
     """
-    Implements an online version of the Rao Kupper model
-    Performs stochastic gradient ascent on the log likelihood of the Rao Kupper model
-    https://encyclopediaofmath.org/wiki/Paired_comparison_model
-    https://papers.nips.cc/paper_files/paper/2015/hash/2a38a4a9316c49e5a833517c45d31070-Abstract.html
+    Implements the Elo-Davidson rating system from https://www.researchgate.net/publication/341384358_Understanding_Draws_in_Elo_Rating_Algorithm
+    This method applies the method of handling draws proposed by Davidson to the "online" Elo rating system
+    Davidson's paper: https://www.jstor.org/stable/2283595
     """
 
     rating_dim = 1
@@ -19,9 +18,10 @@ class OnlineRaoKupper(OnlineRatingSystem):
         self,
         competitors: list,
         initial_rating: float = 0.0,  # this does nothing
-        theta: float = 2.0,
-        step_size: float = 32.0,
-        temperature: float = math.log(10.0) / 400.0,
+        k: float = 32.0,
+        kappa: float = 1.0,  # kappa = 2, sigma = 200 is equivalent to Elo with scale = 400.0
+        base: float = 10.0,
+        sigma: float = 200.0,
         update_method: str = 'iterative',
         dtype=np.float64,
     ):
@@ -33,10 +33,10 @@ class OnlineRaoKupper(OnlineRatingSystem):
             initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
         """
         super().__init__(competitors)
-        self.theta = theta
-        self.log_theta = math.log(theta)
-        self.step_size = step_size
-        self.temperature = temperature
+        self.k = k
+        self.kappa = kappa
+        self.kappa_over_2 = kappa / 2.0
+        self.alpha = math.log(base) / (2.0 * sigma)
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         if update_method == 'batched':
             self.update = self.batched_update
@@ -62,7 +62,7 @@ class OnlineRaoKupper(OnlineRatingSystem):
         """
         ratings_1 = self.ratings[matchups[:, 0]]
         ratings_2 = self.ratings[matchups[:, 1]]
-        probs = sigmoid(self.temperature * (ratings_1 - ratings_2))
+        probs = sigmoid(self.alpha * (ratings_1 - ratings_2))
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
@@ -92,18 +92,18 @@ class OnlineRaoKupper(OnlineRatingSystem):
             comp_1, comp_2 = matchups[idx]
             r_1 = self.ratings[comp_1]
             r_2 = self.ratings[comp_2]
-            p_1 = sigmoid_scalar(self.temperature * (r_1 - r_2 - self.log_theta))
-            p_2 = sigmoid_scalar(self.temperature * (r_2 - r_1 - self.log_theta))
-            if outcomes[idx] != 0.5:
-                g_1 = outcomes[idx] - p_1
-                g_2 = (1.0 - outcomes[idx]) - p_2
-            else:  # outcomes[idx] == 0.5
-                # https://www.wolframalpha.com/input?i=derivative+of+log+%28%28exp%28a%29+*+exp%28b%29+*+%28theta%5E2+-+1%29%29+%2F+%28%28exp%28a%29+%2B+theta+*+exp%28b%29%29*%28exp%28b%29+%2B+theta*exp%28a%29%29%29%29+wrt+a
-                g_1 = p_2 - p_1
-                g_2 = p_1 - p_2
 
-            self.ratings[comp_1] += self.step_size * g_1
-            self.ratings[comp_2] += self.step_size * g_2
+            diff = math.exp(self.alpha * (r_1 - r_2))
+            denom = diff + (1.0 / diff) + self.kappa
+
+            p_1 = (diff + self.kappa_over_2) / denom
+            p_2 = ((1.0 / diff) + self.kappa_over_2) / denom
+
+            update_1 = self.k * (outcomes[idx] - p_1)
+            update_2 = self.k * (1.0 - outcomes[idx] - p_2)
+
+            self.ratings[comp_1] += update_1
+            self.ratings[comp_2] += update_2
 
     def print_leaderboard(self, num_places):
         sorted_idxs = np.argsort(-self.ratings)[:num_places]
