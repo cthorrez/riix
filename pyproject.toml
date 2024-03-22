@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "riix"
-version = "0.0.1"
+version = "0.0.2"
 description = "vectorized implementations of online rating systems"
 readme = "README.md"
+license = {file = "LICENSE"}
 authors = [
     {name="Clayton Thorrez", email="claytonthorrez@gmail.com"},
 ]
@@ -14,8 +15,14 @@ dependencies = [
     "numpy",
     "scipy",
     "pandas",
-    "pdoc"
 ]
+keywords = ["rating system", "paired comparison"]
+
+[project.urls]
+Docs = "https://cthorrez.github.io/riix/"
+Repository = "https://github.com/cthorrez/riix"
+Issues = "https://github.com/cthorrez/riix/issues"
+
 
 [tool.ruff]
 line-length = 120
