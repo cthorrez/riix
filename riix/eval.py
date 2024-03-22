@@ -39,7 +39,7 @@ def grid_search(rating_system_class, dataset, params_grid, metric='log_loss', mi
 
     for setting in product(*params_grid.values()):
         current_params = dict(zip(params_grid.keys(), setting))
-        rating_system = rating_system_class(num_competitors=dataset.num_competitors, **current_params)
+        rating_system = rating_system_class(competitors=dataset.competitors, **current_params)
         current_metrics = evaluate(rating_system, dataset)
         current_metric = current_metrics[metric]
 
@@ -68,7 +68,7 @@ def multi_dataset_grid_search(rating_system_class, datasets, params_grid, metric
 
         # Evaluate across all datasets
         for dataset in datasets:
-            rating_system = rating_system_class(num_competitors=dataset.num_competitors, **current_params)
+            rating_system = rating_system_class(competitors=dataset.competitors, **current_params)
             current_metrics = evaluate(rating_system, dataset)
             metrics_across_datasets.append(current_metrics[metric])
 
