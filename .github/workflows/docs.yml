@@ -23,8 +23,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      # ADJUST THIS: install all dependencies (including pdoc)
+      # ADJUST THIS: install all dependencies
       - run: pip install -e .
+      - run: pip install pdoc
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       - run: pdoc -o docs -t docs --docformat google --logo https://cthorrez.github.io/riix/riix_logo.png --favicon https://cthorrez.github.io/riix/favicon.ico riix
