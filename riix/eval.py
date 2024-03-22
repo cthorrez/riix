@@ -1,8 +1,10 @@
 """utils for evaluating rating systems"""
 import time
+from functools import partial
 from copy import deepcopy
 from itertools import product
 from collections import defaultdict
+from multiprocessing import Pool
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.utils.data_utils import MatchupDataset
@@ -30,19 +32,42 @@ def train_and_evaluate(model: OnlineRatingSystem, train_dataset: MatchupDataset,
     return metrics
 
 
-def grid_search(rating_system_class, dataset, params_grid, metric='log_loss', minimize_metric=True):
+def eval_wrapper(
+    params,
+    rating_system_class,
+    dataset,
+):
+    model = rating_system_class(competitors=dataset.competitors, **params)
+    return evaluate(model, dataset)
+
+
+def grid_search(
+    rating_system_class,
+    dataset,
+    params_grid,
+    metric='log_loss',
+    minimize_metric=True,
+    num_processes=None,
+):
     """Perform grid search and return the best hyperparameters."""
+    map_fn = map
+    if num_processes:
+        pool = Pool(num_processes)
+        map_fn = pool.imap
+
     best_params = {}
     best_metrics = {}
     metric_multiplier = 1.0 if minimize_metric else -1.0
     best_metric = np.inf
 
-    for setting in product(*params_grid.values()):
-        current_params = dict(zip(params_grid.keys(), setting))
-        rating_system = rating_system_class(competitors=dataset.competitors, **current_params)
-        current_metrics = evaluate(rating_system, dataset)
-        current_metric = current_metrics[metric]
+    all_params = product(*params_grid.values())
+    inputs = [dict(zip(params_grid.keys(), params)) for params in all_params]
 
+    func = partial(eval_wrapper, rating_system_class=rating_system_class, dataset=dataset)
+    all_metrics = map_fn(func, inputs)
+
+    for current_params, current_metrics in zip(inputs, all_metrics):
+        current_metric = current_metrics[metric]
         # Compare and update best metric and params
         if current_metric * metric_multiplier < best_metric:
             best_metric = current_metric * metric_multiplier
