@@ -32,18 +32,15 @@ def train_and_evaluate(model: OnlineRatingSystem, train_dataset: MatchupDataset,
     return metrics
 
 
-def eval_wrapper(
-    params,
-    rating_system_class,
-    dataset,
-):
-    model = rating_system_class(competitors=dataset.competitors, **params)
-    return evaluate(model, dataset)
+def eval_wrapper(params, rating_system_class, train_dataset, test_dataset):
+    model = rating_system_class(competitors=train_dataset.competitors, **params)
+    return train_and_evaluate(model, train_dataset, test_dataset)
 
 
 def grid_search(
     rating_system_class,
-    dataset,
+    train_dataset,
+    test_dataset,
     params_grid,
     metric='log_loss',
     minimize_metric=True,
@@ -63,7 +60,12 @@ def grid_search(
     all_params = product(*params_grid.values())
     inputs = [dict(zip(params_grid.keys(), params)) for params in all_params]
 
-    func = partial(eval_wrapper, rating_system_class=rating_system_class, dataset=dataset)
+    func = partial(
+        eval_wrapper,
+        rating_system_class=rating_system_class,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+    )
     all_metrics = map_fn(func, inputs)
 
     for current_params, current_metrics in zip(inputs, all_metrics):

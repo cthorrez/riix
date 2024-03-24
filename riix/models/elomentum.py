@@ -41,7 +41,9 @@ class EloMentum(Elo):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
-        if momentum_type == 'nesterov':
+        if momentum_type == 'heavy_ball':
+            self.momentum_fn = self.get_momentum_update
+        elif momentum_type == 'nesterov':
             self.momentum_fn = self.get_nesterov_momentum_update
         elif momentum_type == 'adam':
             self.momentum_fn = self.get_adam_update
@@ -49,7 +51,7 @@ class EloMentum(Elo):
             self.t = np.zeros(shape=self.num_competitors, dtype=np.int32)
             self.beta1, self.beta2 = momentum
         else:
-            self.momentum_fn = self.get_momentum_update
+            raise ValueError(f'Invalid momentum_type {momentum_type}')
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
