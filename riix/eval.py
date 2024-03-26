@@ -45,6 +45,7 @@ def grid_search(
     metric='log_loss',
     minimize_metric=True,
     num_processes=None,
+    return_all_metrics=False,
 ):
     """Perform grid search and return the best hyperparameters."""
     map_fn = map
@@ -76,7 +77,9 @@ def grid_search(
             best_metrics = deepcopy(current_metrics)
             best_params = current_params
 
-    return best_params, best_metrics
+    if not return_all_metrics:
+        return best_params, best_metrics
+    return best_params, best_metrics, all_metrics
 
 
 def multi_dataset_grid_search(rating_system_class, datasets, params_grid, metric='log_loss', minimize_metric=True):
