@@ -39,6 +39,10 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
             self.update = self.iterative_update
         self.cache = {}
 
+    @property
+    def ratings(self):
+        return self.mus
+
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]

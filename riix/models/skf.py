@@ -48,6 +48,10 @@ class VSKF(OnlineRatingSystem):
         probs = base_10_sigmoid(rating_diffs / self.s)
         return probs
 
+    @property
+    def ratings(self):
+        return self.mus
+
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         mus = self.mus[matchups]
         vs = self.vs[matchups]

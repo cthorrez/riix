@@ -37,6 +37,10 @@ class TrueSkill(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
+    @property
+    def ratings(self):
+        return self.mus
+
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]

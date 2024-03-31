@@ -117,6 +117,9 @@ class MatchupDataset:
         dataset.matchups = np.searchsorted(dataset.competitors, matchups)
         dataset.num_competitors = dataset.competitors.shape[0]
         dataset.iter_fn = dataset.iter_by_rating_period
+        print('loaded dataset with:')
+        print(f'{dataset.matchups.shape[0]} matchups')
+        print(f'{len(dataset.competitors)} unique competitors')
         return dataset
 
 
