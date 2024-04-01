@@ -32,22 +32,22 @@ def eval_wrapper(params, rating_system_class, dataset, test_dataset=None):
 
 
 def create_uniform_grid(
-    params_ranges,
+    param_ranges,
     num_samples,
     seed=0,
 ):
     rng = np.random.default_rng(seed)
-    num_hyperparams = len(params_ranges)
+    num_hyperparams = len(param_ranges)
     low = np.empty(num_hyperparams)
     high = np.empty(num_hyperparams)
-    for idx, param_range in enumerate(params_ranges.values()):
+    for idx, param_range in enumerate(param_ranges.values()):
         low[idx] = param_range[0]
         high[idx] = param_range[1]
     values = rng.uniform(low=low, high=high, size=(num_samples, num_hyperparams))
     params = []
     for sample_idx, values_row in enumerate(values):
         current_params = {}
-        for param_idx, param_name in enumerate(params_ranges.keys()):
+        for param_idx, param_name in enumerate(param_ranges.keys()):
             current_params[param_name] = values_row[param_idx]
         params.append(current_params)
     return params
@@ -57,8 +57,8 @@ def grid_search(
     rating_system_class,
     dataset,
     test_dataset=None,
-    params_grid=None,
-    params_ranges=None,
+    param_grid=None,
+    param_ranges=None,
     num_samples=None,
     metric='log_loss',
     minimize_metric=True,
@@ -77,14 +77,14 @@ def grid_search(
     metric_multiplier = 1.0 if minimize_metric else -1.0
     best_metric = np.inf
 
-    if (params_grid is not None) and (params_ranges is None):
-        all_params = product(*params_grid.values())
-        inputs = [dict(zip(params_grid.keys(), params)) for params in all_params]
-    elif (params_ranges is not None) and (params_grid is None):
-        inputs = create_uniform_grid(params_ranges, num_samples, seed)
+    if (param_grid is not None) and (param_ranges is None):
+        all_params = product(*param_grid.values())
+        inputs = [dict(zip(param_grid.keys(), params)) for params in all_params]
+    elif (param_ranges is not None) and (param_grid is None):
+        inputs = create_uniform_grid(param_ranges, num_samples, seed)
         pass
     else:
-        raise ValueError('you must only specify one of params_grid and params_ranges')
+        raise ValueError('you must only specify one of param_grid and param_ranges')
 
     func = partial(
         eval_wrapper,
