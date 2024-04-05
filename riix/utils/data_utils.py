@@ -3,9 +3,7 @@
 import math
 import time
 from typing import List
-from copy import deepcopy
 import numpy as np
-import scipy
 import pandas as pd
 
 
@@ -21,7 +19,6 @@ class MatchupDataset:
         timestamp_col: str = None,
         time_step_col: str = None,
         rating_period: str = '1W',
-        batch_size: int = None,
         verbose: bool = True,
     ):
         if len(competitor_cols) != 2:
@@ -29,13 +26,10 @@ class MatchupDataset:
         if (bool(datetime_col) + bool(timestamp_col) + bool(time_step_col)) != 1:
             raise ValueError('must specify only one of time_step_col, datetime_col, timestamp_col')
 
-        self.batch_size = batch_size
-
         if time_step_col:
             self.time_steps = df[time_step_col].astype(np.int64)
         else:
             if datetime_col:
-                # get integer time_steps starting from 0 and increasing one per rating period
                 epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
             if timestamp_col:
                 epoch_times = df[timestamp_col].values.astype(np.int64)
@@ -45,14 +39,7 @@ class MatchupDataset:
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
 
-        # _, self.time_step_start_idxs, time_step_counts = np.unique(
-        #     self.time_steps, return_index=True, return_counts=True
-        # )
-        # self.time_step_end_idxs = self.time_step_start_idxs + time_step_counts
-        self.unique_time_steps = np.unique(self.time_steps)
-        self.time_slices = scipy.ndimage.find_objects(
-            self.time_steps + 1
-        )  # LOL! https://codereview.stackexchange.com/a/60887
+        self.unique_time_steps, self.unique_time_step_indices = np.unique(self.time_steps, return_index=True)
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -66,57 +53,48 @@ class MatchupDataset:
             print(f'{self.matchups.shape[0]} matchups')
             print(f'{len(self.competitors)} unique competitors')
 
-        if batch_size is not None:
-            self.iter_fn = self.iter_by_batch
-            self.num_batches = math.ceil(len(self) / self.batch_size)
-            if verbose:
-                print(f'{self.num_batches} batches of length {batch_size}')
-        else:
-            self.iter_fn = self.iter_by_rating_period
-            if verbose and (time_step_col is None):
-                print(f'{np.max(self.time_steps) + 1} rating periods of length {rating_period}')
-
-    def iter_by_rating_period(self):
-        """iterate batches one rating period at a time"""
-        for time_step in np.nditer(op=self.unique_time_steps):
-            idx_slice = self.time_slices[time_step]
-            matchups = self.matchups[idx_slice]
-            outcomes = self.outcomes[idx_slice]
-            yield matchups, outcomes, time_step
-
-    def iter_by_batch(self, batch_size=None):
-        """iterate in fixed size batches"""
-        num_batches = math.ceil(len(self) / self.batch_size)
-        batch_start_idx = 0
-        for _ in range(num_batches):
-            batch_end_idx = batch_start_idx + self.batch_size
-            time_step = self.time_steps[
-                batch_start_idx
-            ]  # it's possible the batch represents data from multiple time_steps
-            matchups = self.matchups[batch_start_idx:batch_end_idx]
-            outcomes = self.outcomes[batch_start_idx:batch_end_idx]
-            batch_start_idx = batch_end_idx
-            yield matchups, outcomes, time_step
-
     def __iter__(self):
-        for batch in iter(self.iter_fn()):
-            yield batch
+        """iterate batches one rating period at a time"""
+        for time_step in self.unique_time_steps:
+            time_mask = self.time_steps == time_step
+            matchups = self.matchups[time_mask, :]
+            outcomes = self.outcomes[time_mask]
+            yield matchups, outcomes, time_step
 
     def __len__(self):
         return self.matchups.shape[0]
 
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            slice_dataset = MatchupDataset.init_from_arrays(
+                time_steps=self.time_steps[key],
+                matchups=self.matchups[key, :],
+                outcomes=self.outcomes[key],
+                competitors=self.competitors,
+            )
+            return slice_dataset
+        else:
+            raise ValueError('you can only index MatchupDataset with a slice')
+
+    @classmethod
+    def init_from_arrays(cls, time_steps, matchups, outcomes, competitors):
+        dataset = cls.__new__(cls)
+        dataset.time_steps = time_steps
+        dataset.unique_time_steps, dataset.unique_time_step_indices = np.unique(dataset.time_steps, return_index=True)
+        dataset.outcomes = outcomes
+        dataset.matchups = matchups
+        dataset.competitors = competitors
+        dataset.num_competitors = len(competitors)
+        return dataset
+
     @classmethod
     def load_from_npz(cls, path):
-        dataset = cls.__new__(cls)
         time_steps, matchups, outcomes = np.load(path).values()
-        dataset.time_steps = time_steps
-        dataset.unique_time_steps = np.unique(dataset.time_steps)
-        dataset.time_slices = scipy.ndimage.find_objects(dataset.time_steps + 1)
-        dataset.outcomes = outcomes
-        dataset.competitors = np.unique(matchups)
-        dataset.matchups = np.searchsorted(dataset.competitors, matchups)
-        dataset.num_competitors = dataset.competitors.shape[0]
-        dataset.iter_fn = dataset.iter_by_rating_period
+        competitors = np.unique(matchups)
+        matchups = np.searchsorted(competitors, matchups)
+        dataset = cls.init_from_arrays(
+            time_steps=time_steps, matchups=matchups, outcomes=outcomes, competitors=competitors
+        )
         print('loaded dataset with:')
         print(f'{dataset.matchups.shape[0]} matchups')
         print(f'{len(dataset.competitors)} unique competitors')
@@ -124,32 +102,10 @@ class MatchupDataset:
 
 
 def split_matchup_dataset(dataset, test_fraction=0.2):
-    train_dataset = deepcopy(dataset)
-    test_dataset = deepcopy(dataset)
-
-    num_matchups = len(dataset)
-    num_train_matchups = math.ceil(num_matchups * (1.0 - test_fraction))
-
-    train_dataset.matchups = dataset.matchups[:num_train_matchups, :]
-    train_dataset.outcomes = dataset.outcomes[:num_train_matchups]
-    train_dataset.time_steps = dataset.time_steps[:num_train_matchups]
-    # _, train_dataset.time_step_start_idxs, train_time_step_counts = np.unique(
-    #     train_dataset.time_steps, return_index=True, return_counts=True
-    # )
-    # train_dataset.time_step_end_idxs = train_dataset.time_step_start_idxs + train_time_step_counts
-    train_dataset.unique_time_steps = np.unique(train_dataset.time_steps)
-    train_dataset.time_slices = scipy.ndimage.find_objects(train_dataset.time_steps + 1)
-
-    test_dataset.matchups = dataset.matchups[num_train_matchups:, :]
-    test_dataset.outcomes = dataset.outcomes[num_train_matchups:]
-    test_dataset.time_steps = dataset.time_steps[num_train_matchups:]
-    # _, test_dataset.time_step_start_idxs, test_time_step_counts = np.unique(
-    #     test_dataset.time_steps, return_index=True, return_counts=True
-    # )
-    # test_dataset.time_step_end_idxs = test_dataset.time_step_start_idxs + test_time_step_counts
-    test_dataset.unique_time_steps = np.unique(test_dataset.time_steps)
-    test_dataset.time_slices = scipy.ndimage.find_objects(test_dataset.time_steps + 1)
-
+    split_idx = math.ceil(len(dataset) * (1.0 - test_fraction))
+    train_dataset = dataset[:split_idx]
+    test_dataset = dataset[split_idx:]
+    print(f'split into train_dataset of length {len(train_dataset)} and test_dataset of length {len(test_dataset)}')
     return train_dataset, test_dataset
 
 
