@@ -52,6 +52,7 @@ class MatchupDataset:
             print('loaded dataset with:')
             print(f'{self.matchups.shape[0]} matchups')
             print(f'{len(self.competitors)} unique competitors')
+            print(f'{self.unique_time_steps.max()} rating periods of length {rating_period}')
 
     def __iter__(self):
         """iterate batches one rating period at a time"""
