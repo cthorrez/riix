@@ -39,7 +39,7 @@ class MatchupDataset:
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
 
-        self.unique_time_steps, self.unique_time_step_indices = np.unique(self.time_steps, return_index=True)
+        self.process_time_steps()
 
         # map competitor names/ids to integers
         self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
@@ -54,12 +54,18 @@ class MatchupDataset:
             print(f'{len(self.competitors)} unique competitors')
             print(f'{self.unique_time_steps.max()} rating periods of length {rating_period}')
 
+    def process_time_steps(self):
+        self.unique_time_steps, unique_time_step_indices = np.unique(self.time_steps, return_index=True)
+        self.time_step_end_idxs = np.roll(unique_time_step_indices, shift=-1)
+        self.time_step_end_idxs[-1] = self.time_steps.shape[0]
+
     def __iter__(self):
         """iterate batches one rating period at a time"""
-        for time_step in self.unique_time_steps:
-            time_mask = self.time_steps == time_step
-            matchups = self.matchups[time_mask, :]
-            outcomes = self.outcomes[time_mask]
+        period_start_idx = 0
+        for time_step, period_end_idx in zip(self.unique_time_steps, self.time_step_end_idxs):
+            matchups = self.matchups[period_start_idx:period_end_idx, :]
+            outcomes = self.outcomes[period_start_idx:period_end_idx]
+            period_start_idx = period_end_idx
             yield matchups, outcomes, time_step
 
     def __len__(self):
@@ -81,7 +87,7 @@ class MatchupDataset:
     def init_from_arrays(cls, time_steps, matchups, outcomes, competitors):
         dataset = cls.__new__(cls)
         dataset.time_steps = time_steps
-        dataset.unique_time_steps, dataset.unique_time_step_indices = np.unique(dataset.time_steps, return_index=True)
+        dataset.process_time_steps()
         dataset.outcomes = outcomes
         dataset.matchups = matchups
         dataset.competitors = competitors
