@@ -1,11 +1,35 @@
 """simplified kalman filter"""
 import math
 import numpy as np
+from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import base_10_sigmoid
+from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar, norm_cdf
 
 LOG10 = math.log(10.0)
 LOG10_SQUARED = LOG10**2.0
+
+
+def bradley_terry_prob(z):
+    return base_10_sigmoid(z)
+
+
+def bradley_terry_scalar_prob_g_h(z, outcome):
+    prob = base_10_sigmoid(z)
+    g = LOG10 * (outcome - prob)
+    h = LOG10_SQUARED * prob * (1.0 - prob)
+    return prob, g, h
+
+
+def thurstone_mosteller_scalar_prob_g_h(z, outcome):
+    prob = norm_cdf(z)
+    if outcome != 0.5:
+        sign_multiplier = (2 * outcome) - 1  # maps 1 to 1 and 0 to -1
+        v, w = v_and_w_win_scalar(z * sign_multiplier, 0.0)
+        v = v * sign_multiplier
+    else:
+        v, w = v_and_w_draw_scalar(z, 0.0)
+    return prob, v, w
 
 
 class VSKF(OnlineRatingSystem):
@@ -22,6 +46,7 @@ class VSKF(OnlineRatingSystem):
         s: float = 1.0,
         epsilon: float = 1e-2,
         dtype=np.float64,
+        model='bt',  # legal values are bt, tm, and dd
         update_method='iterative',
     ):
         super().__init__(competitors)
@@ -40,12 +65,19 @@ class VSKF(OnlineRatingSystem):
         elif update_method == 'iterative':
             self.update = self.iterative_update
 
+        if model == 'bt':
+            self.predict_func = bradley_terry_prob
+            self.prob_g_h_func = bradley_terry_scalar_prob_g_h
+        elif model == 'tm':
+            self.predict_func = norm.cdf
+            self.prob_g_h_func = thurstone_mosteller_scalar_prob_g_h
+
     def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
         """generate predictions"""
         ratings_1 = self.mus[matchups[:, 0]]
         ratings_2 = self.mus[matchups[:, 1]]
         rating_diffs = ratings_1 - ratings_2
-        probs = base_10_sigmoid(rating_diffs / self.s)
+        probs = self.predict_func(rating_diffs / self.s)
         return probs
 
     @property
@@ -114,10 +146,8 @@ class VSKF(OnlineRatingSystem):
 
             omega = v_1 + v_2
             z = (mu_1 - mu_2) / self.s
-            prob = base_10_sigmoid(z)
 
-            g = LOG10 * (outcome - prob)
-            h = LOG10_SQUARED * prob * (1.0 - prob)
+            prob, g, h = self.prob_g_h_func(z, outcome)
 
             denom = (self.s2) + h * omega
             mu_update = (self.s * g) / denom
