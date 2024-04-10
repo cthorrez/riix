@@ -1,10 +1,13 @@
-"""Weng/Lin Bayesian Online Rating system, Bradley Terry Edition"""
+"""Weng/Lin Bayesian Online Rating system"""
+import math
 import numpy as np
+from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar
 
 
-class WengLinBradleyTerry(OnlineRatingSystem):
+class WengLin(OnlineRatingSystem):
     """The Bayesian Online Rating System introduced by Weng and Lin"""
 
     rating_dim = 2
@@ -17,7 +20,9 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         beta: float = 4.166,
         kappa: float = 0.0001,
         tau: float = 0.0833,
+        draw_probability=0.0,
         update_method: str = 'iterative',
+        model='tm',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -25,6 +30,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         self.two_beta_squared = 2.0 * (beta**2.0)
         self.tau_squared = tau**2.0
         self.kappa = kappa
+        self.epsilon = norm.ppf((draw_probability + 1.0) / 2.0) * math.sqrt(2.0) * beta
 
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_mu
         self.sigma2s = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma**2.0
@@ -34,6 +40,13 @@ class WengLinBradleyTerry(OnlineRatingSystem):
             self.update = self.batched_update
         elif update_method == 'iterative':
             self.update = self.iterative_update
+
+        if model == 'bt':
+            self.model_func = self.bradley_terry_scalar_updates
+            self.prob_func = sigmoid
+        elif model == 'tm':
+            self.model_func = self.thurstone_mosteller_scalar_updates
+            self.prob_func = norm.cdf
 
         self.cache = {
             'combined_sigma2s': None,
@@ -55,7 +68,7 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         combined_sigma2s = self.two_beta_squared + sigma2s.sum(axis=1)
         combined_devs = np.sqrt(combined_sigma2s)
         norm_diffs = (mus[:, 0] - mus[:, 1]) / combined_devs
-        probs = sigmoid(norm_diffs)
+        probs = self.prob_func(norm_diffs)
         if set_cache:
             self.cache['combined_sigma2s'] = combined_sigma2s
             self.cache['combined_devs'] = combined_devs
@@ -105,26 +118,40 @@ class WengLinBradleyTerry(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
 
+    def bradley_terry_scalar_updates(self, norm_diff, sigma2s, combined_sigma2, combined_dev, outcome):
+        prob = sigmoid_scalar(norm_diff)
+        deltas = (sigma2s / combined_dev) * (outcome - prob)
+        gammas = np.sqrt(sigma2s) / combined_dev
+        etas = gammas * (sigma2s / combined_sigma2) * (prob * (1.0 - prob))
+        return deltas, etas
+
+    def thurstone_mosteller_scalar_updates(self, norm_diff, sigma2s, combined_sigma2, combined_dev, outcome):
+        sign_multiplier = outcome if outcome else -1.0
+        if outcome != 0.5:
+            v, w = v_and_w_win_scalar(norm_diff * sign_multiplier, self.epsilon / combined_dev)
+        else:
+            v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
+
+        deltas = sign_multiplier * (sigma2s / combined_dev) * v
+        gammas = np.sqrt(sigma2s) / combined_dev
+        etas = gammas * (sigma2s / combined_sigma2) * w
+        return deltas, etas
+
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
-            sigma2s = self.sigma2s[matchups[idx]]
             self.sigma2s[matchups[idx]] += self.tau_squared
-            combined_sigma2s = self.two_beta_squared + sigma2s.sum()
-            combined_devs = np.sqrt(combined_sigma2s)
-            norm_diffs = (self.mus[comp_1] - self.mus[comp_2]) / combined_devs
-            prob = sigmoid(norm_diffs)
+            sigma2s = self.sigma2s[matchups[idx]]
+            combined_sigma2 = self.two_beta_squared + sigma2s.sum()
+            combined_dev = np.sqrt(combined_sigma2)
+            norm_diff = (self.mus[comp_1] - self.mus[comp_2]) / combined_dev
 
-            mu_updates = (sigma2s / combined_devs) * (outcomes[idx] - prob)
-
-            gammas = np.sqrt(sigma2s) / combined_devs
-            etas = gammas * (sigma2s / combined_sigma2s) * (prob * (1.0 - prob))
-
+            deltas, etas = self.model_func(norm_diff, sigma2s, combined_sigma2, combined_dev, outcomes[idx])
             sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
 
-            self.mus[comp_1] += mu_updates[0]
-            self.mus[comp_2] -= mu_updates[1]
+            self.mus[comp_1] += deltas[0]
+            self.mus[comp_2] -= deltas[1]
             self.sigma2s[matchups[idx]] *= sigma2_multipliers
 
     def print_leaderboard(self, num_places):

@@ -1,4 +1,4 @@
-"""Weng/Lin Bayesian Online Rating system, Thurstone Mosteller Edition"""
+"""DEPRECATED!!!!, use weng_lin.WengLin with model="tm", keeping the code here for reference for now"""
 import math
 import numpy as np
 from scipy.stats import norm
@@ -125,12 +125,10 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             self.sigma2s[matchups[idx]] += self.tau_squared
-            rating_diff = self.mus[comp_1] - self.mus[comp_2]
             sigma2s = self.sigma2s[matchups[idx]]
-
             combined_sigma2 = self.two_beta_squared + sigma2s.sum()
             combined_dev = np.sqrt(combined_sigma2)
-            norm_diff = (rating_diff) / combined_dev
+            norm_diff = (self.mus[comp_1] - self.mus[comp_2]) / combined_dev
 
             outcome = outcomes[idx]
             sign_multiplier = outcome if outcome else -1.0
