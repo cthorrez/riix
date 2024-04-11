@@ -85,9 +85,10 @@ def v_and_w_draw_vector(t, eps):
 def v_and_w_win_scalar(t, eps):
     """calculate v and w for a win in a scalar fashion"""
     diff = t - eps
-    try:
-        v = norm_pdf(diff) / norm_cdf(diff)
-    except ZeroDivisionError:
+    cdf = norm_cdf(diff)
+    if cdf > 2.222758749e-162:
+        v = norm_pdf(diff) / cdf
+    else:
         v = -diff
     w = v * (v + diff)
     return v, w
