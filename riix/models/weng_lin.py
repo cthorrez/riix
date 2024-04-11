@@ -35,6 +35,7 @@ class WengLin(OnlineRatingSystem):
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_mu
         self.sigma2s = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma**2.0
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
+        self.prev_time_step = 0
 
         if update_method == 'batched':
             self.update = self.batched_update
@@ -75,12 +76,13 @@ class WengLin(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def increase_rating_dev(self, matchups):
+    def increase_rating_dev(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
-        # self.sigma2s[active_in_period] += self.tau_squared  # increase var for currently playing players
-        self.sigma2s[self.has_played] += self.tau_squared  # increase var for ALL players
+        time_delta = time_step - self.prev_time_step
+        self.sigma2s[self.has_played] += time_delta * self.tau_squared  # increase var for active players
+        self.prev_time_step = time_step
         return active_in_period
 
     def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
@@ -137,11 +139,12 @@ class WengLin(OnlineRatingSystem):
         etas = gammas * (sigma2s / combined_sigma2) * w
         return deltas, etas
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
+        self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
-            self.sigma2s[matchups[idx]] += self.tau_squared
+            # self.sigma2s[matchups[idx]] += self.tau_squared
             sigma2s = self.sigma2s[matchups[idx]]
             combined_sigma2 = self.two_beta_squared + sigma2s.sum()
             combined_dev = np.sqrt(combined_sigma2)
