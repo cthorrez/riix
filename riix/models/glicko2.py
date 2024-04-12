@@ -7,7 +7,7 @@ example: http://www.glicko.net/glicko/glicko2.pdf
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, sigmoid_scalar
 from riix.utils.constants import THREE_OVER_PI_SQUARED
 
 
@@ -81,8 +81,22 @@ class Glicko2(OnlineRatingSystem):
         self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
             pass
-            # comp_1, comp_2 = matchups[idx]
-            # rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
+            comp_1, comp_2 = matchups[idx]
+            rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
+            phi_1 = self.phis[comp_1]
+            phi_2 = self.phis[comp_2]
+            g_1 = self.g(phi_1)
+            g_2 = self.g(phi_2)
+            p_1 = sigmoid_scalar(g_1 * rating_diff)
+            p_2 = sigmoid_scalar(-g_2 * rating_diff)
+            v_1 = (g_1**2.0) * p_1 * (1.0 - p_1)
+            v_2 = (g_2**2.0) * p_2 * (1.0 - p_2)
+            delta_1 = v_1 * g_1 * (outcomes[idx] - p_1)
+            delta_2 = v_2 * g_2 * (1.0 - outcomes[idx] - p_2)
+
+            # these are wrong, just placeholders
+            self.mus[comp_1] += delta_1
+            self.mus[comp_2] -= delta_2
 
     def print_leaderboard(self, num_places):
         sort_array = self.ratings - (3.0 * self.rating_devs)
