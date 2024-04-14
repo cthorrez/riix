@@ -98,6 +98,9 @@ class Glicko2(OnlineRatingSystem):
             self.mus[comp_1] += delta_1
             self.mus[comp_2] -= delta_2
 
+            self.phis[comp_1] = math.sqrt((self.phis[comp_1] ** 2.0) + (self.sigmas[phi_1] ** 2.0))
+            self.phis[comp_2] = math.sqrt((self.phis[comp_2] ** 2.0) + (self.sigmas[phi_2] ** 2.0))
+
     def print_leaderboard(self, num_places):
         sort_array = self.ratings - (3.0 * self.rating_devs)
         sorted_idxs = np.argsort(-sort_array)[:num_places]
