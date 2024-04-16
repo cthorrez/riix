@@ -31,7 +31,8 @@ class Glicko2(OnlineRatingSystem):
         """Initializes the Glicko rating system with the given parameters."""
         super().__init__(competitors)
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + (initial_rating - 1500.00) / 173.7178
-        self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + (initial_rating_dev / 173.7178)
+        self.initial_phi = initial_rating_dev / 173.7178
+        self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + self.initial_phi
         self.sigmas = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
 
@@ -45,15 +46,20 @@ class Glicko2(OnlineRatingSystem):
         """this is DIFFERENT from g in regular Glicko"""
         return 1.0 / math.sqrt(1.0 + (THREE_OVER_PI_SQUARED * (phi**2.0)))
 
+    @staticmethod
+    def g_vector(phi):
+        """vector version"""
+        return 1.0 / np.sqrt(1.0 + (THREE_OVER_PI_SQUARED * (phi**2.0)))
+
     # TODO should Glicko probs incorporate the dev increase?
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        rating_diffs = ratings_1 - ratings_2
-        rating_devs_1 = self.rating_devs[matchups[:, 0]]
-        rating_devs_2 = self.rating_devs[matchups[:, 1]]
-        combined_dev = self.g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
+        mu_1 = self.mus[matchups[:, 0]]
+        mu_2 = self.mus[matchups[:, 1]]
+        rating_diffs = mu_1 - mu_2
+        phi_1 = self.phis[matchups[:, 0]]
+        phi_2 = self.phis[matchups[:, 1]]
+        combined_dev = self.g_vector(np.sqrt(np.square(phi_1) + np.square(phi_2)))
         probs = sigmoid(combined_dev * rating_diffs)
         return probs
 
@@ -67,8 +73,8 @@ class Glicko2(OnlineRatingSystem):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
-        self.rating_devs[self.has_played] = np.minimum(
-            np.sqrt(np.square(self.rating_devs[self.has_played]) + self.c2), self.initial_rating_dev
+        self.phis[self.has_played] = np.minimum(
+            np.sqrt(np.square(self.phis[self.has_played]) + self.sigmas[self.has_played]), self.initial_phi
         )
         return active_in_period
 
@@ -76,30 +82,40 @@ class Glicko2(OnlineRatingSystem):
         """apply one update based on all of the results of the rating period"""
         # TODO
 
+    def get_sigma_star(self, sigma):
+        return sigma
+
     def iterative_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
-            pass
             comp_1, comp_2 = matchups[idx]
-            rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
+            rating_diff = self.mus[comp_1] - self.mus[comp_2]
             phi_1 = self.phis[comp_1]
             phi_2 = self.phis[comp_2]
-            g_1 = self.g(phi_1)
-            g_2 = self.g(phi_2)
+            g_1 = self.g_scalar(phi_1)
+            g_2 = self.g_scalar(phi_2)
             p_1 = sigmoid_scalar(g_1 * rating_diff)
             p_2 = sigmoid_scalar(-g_2 * rating_diff)
             v_1 = (g_1**2.0) * p_1 * (1.0 - p_1)
             v_2 = (g_2**2.0) * p_2 * (1.0 - p_2)
-            delta_1 = v_1 * g_1 * (outcomes[idx] - p_1)
-            delta_2 = v_2 * g_2 * (1.0 - outcomes[idx] - p_2)
+            # delta_1 = v_1 * g_1 * (outcomes[idx] - p_1)
+            # delta_2 = v_2 * g_2 * (1.0 - outcomes[idx] - p_2)
 
-            # these are wrong, just placeholders
-            self.mus[comp_1] += delta_1
-            self.mus[comp_2] -= delta_2
+            # sigma_star_1 = self.get_sigma_star(self.sigmas[comp_1])
+            # sigma_star_2 = self.get_sigma_star(self.sigmas[comp_2])
 
-            self.phis[comp_1] = math.sqrt((self.phis[comp_1] ** 2.0) + (self.sigmas[phi_1] ** 2.0))
-            self.phis[comp_2] = math.sqrt((self.phis[comp_2] ** 2.0) + (self.sigmas[phi_2] ** 2.0))
+            # I guess don't do this since I update them all at the beginning?
+            # phi_star_1 = (self.phis[comp_1] ** 2.0) + (sigma_star_1 ** 2.0)
+            # phi_star_2 = (self.phis[comp_2] ** 2.0) + (sigma_star_2 ** 2.0)
+            phi_star_1 = self.phis[comp_1] ** 2.0
+            phi_star_2 = self.phis[comp_2] ** 2.0
+
+            self.sigmas[comp_1] = 1.0 / math.sqrt((1.0 / phi_star_1) + (1.0 / (v_1**2.0)))
+            self.sigmas[comp_2] = 1.0 / math.sqrt((1.0 / phi_star_2) + (1.0 / (v_2**2.0)))
+
+            self.mus[comp_1] += (self.sigmas[comp_1] ** 2.0) * g_1 * (outcomes[idx] - p_1)
+            self.mus[comp_2] -= (self.sigmas[comp_2] ** 2.0) * g_2 * (1.0 - outcomes[idx] - p_2)
 
     def print_leaderboard(self, num_places):
         sort_array = self.ratings - (3.0 * self.rating_devs)
