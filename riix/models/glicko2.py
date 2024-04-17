@@ -59,13 +59,13 @@ class Glicko2(OnlineRatingSystem):
         rating_diffs = mu_1 - mu_2
         phi_1 = self.phis[matchups[:, 0]]
         phi_2 = self.phis[matchups[:, 1]]
-        combined_dev = self.g_vector(np.sqrt(np.square(phi_1) + np.square(phi_2)))
+        combined_dev = self.g_vector(phi_1 + phi_2)
         probs = sigmoid(combined_dev * rating_diffs)
         return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        means = self.ratings[matchups]
-        devs = self.rating_devs[matchups]
+        means = self.mus[matchups]
+        devs = self.phis[matchups]
         ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
         return ratings
 
@@ -74,7 +74,7 @@ class Glicko2(OnlineRatingSystem):
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
         self.phis[self.has_played] = np.minimum(
-            np.sqrt(np.square(self.phis[self.has_played]) + self.sigmas[self.has_played]), self.initial_phi
+            np.sqrt(np.square(self.phis[self.has_played]) + np.square(self.sigmas[self.has_played])), self.initial_phi
         )
         return active_in_period
 
@@ -90,15 +90,17 @@ class Glicko2(OnlineRatingSystem):
         self.increase_rating_dev(matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
-            rating_diff = self.mus[comp_1] - self.mus[comp_2]
+            mu_1 = self.mus[comp_1]
+            mu_2 = self.mus[comp_2]
+            rating_diff = mu_1 - mu_2
             phi_1 = self.phis[comp_1]
             phi_2 = self.phis[comp_2]
             g_1 = self.g_scalar(phi_1)
             g_2 = self.g_scalar(phi_2)
             p_1 = sigmoid_scalar(g_1 * rating_diff)
             p_2 = sigmoid_scalar(-g_2 * rating_diff)
-            v_1 = (g_1**2.0) * p_1 * (1.0 - p_1)
-            v_2 = (g_2**2.0) * p_2 * (1.0 - p_2)
+            v_1 = 1.0 / ((g_1**2.0) * p_1 * (1.0 - p_1))
+            v_2 = 1.0 / ((g_2**2.0) * p_2 * (1.0 - p_2))
             # delta_1 = v_1 * g_1 * (outcomes[idx] - p_1)
             # delta_2 = v_2 * g_2 * (1.0 - outcomes[idx] - p_2)
 
@@ -111,11 +113,11 @@ class Glicko2(OnlineRatingSystem):
             phi_star_1 = self.phis[comp_1] ** 2.0
             phi_star_2 = self.phis[comp_2] ** 2.0
 
-            self.sigmas[comp_1] = 1.0 / math.sqrt((1.0 / phi_star_1) + (1.0 / (v_1**2.0)))
-            self.sigmas[comp_2] = 1.0 / math.sqrt((1.0 / phi_star_2) + (1.0 / (v_2**2.0)))
+            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / phi_star_1) + (1.0 / (v_1**2.0)))
+            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / phi_star_2) + (1.0 / (v_2**2.0)))
 
-            self.mus[comp_1] += (self.sigmas[comp_1] ** 2.0) * g_1 * (outcomes[idx] - p_1)
-            self.mus[comp_2] -= (self.sigmas[comp_2] ** 2.0) * g_2 * (1.0 - outcomes[idx] - p_2)
+            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_1 * (outcomes[idx] - p_1)
+            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_2 * (1.0 - outcomes[idx] - p_2)
 
     def print_leaderboard(self, num_places):
         sort_array = self.ratings - (3.0 * self.rating_devs)
