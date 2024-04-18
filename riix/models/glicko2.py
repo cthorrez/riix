@@ -21,8 +21,8 @@ class Glicko2(OnlineRatingSystem):
     def __init__(
         self,
         competitors: list,
-        initial_rating: float = 1500.0,
-        initial_rating_dev: float = 350.0,
+        initial_rating: float = 0.0,  # I'm choosing the natural scale to avoid ocnverting back and forth
+        initial_phi: float = 2.0147,
         initial_sigma: float = 0.06,
         tau: float = 0.2,
         dtype=np.float64,
@@ -30,9 +30,9 @@ class Glicko2(OnlineRatingSystem):
     ):
         """Initializes the Glicko rating system with the given parameters."""
         super().__init__(competitors)
-        self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + (initial_rating - 1500.00) / 173.7178
-        self.initial_phi = initial_rating_dev / 173.7178
-        self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + self.initial_phi
+        self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
+        self.initial_phi = initial_phi
+        self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_phi
         self.sigmas = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
 
@@ -59,6 +59,9 @@ class Glicko2(OnlineRatingSystem):
         rating_diffs = mu_1 - mu_2
         phi_1 = self.phis[matchups[:, 0]]
         phi_2 = self.phis[matchups[:, 1]]
+        # the papers and theory seem to indicate this...
+        # combined_dev = self.g_vector(np.sqrt(np.square(phi_1) + np.square(phi_2)))
+        # but this seems to work better...
         combined_dev = self.g_vector(phi_1 + phi_2)
         probs = sigmoid(combined_dev * rating_diffs)
         return probs
