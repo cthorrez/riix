@@ -53,7 +53,7 @@ class Glicko2(OnlineRatingSystem):
     @staticmethod
     def g_vector(phi):
         """vector version"""
-        return 1.0 / np.sqrt(1.0 + (THREE_OVER_PI_SQUARED * (phi**2.0)))
+        return 1.0 / np.sqrt(1.0 + (THREE_OVER_PI_SQUARED * np.square(phi)))
 
     # TODO should Glicko probs incorporate the dev increase?
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
@@ -87,7 +87,15 @@ class Glicko2(OnlineRatingSystem):
 
     def batched_update(self, matchups, outcomes, use_cache=False):
         """apply one update based on all of the results of the rating period"""
-        # TODO
+        pass
+        # active_in_period = np.unique(matchups) # (n_active,)
+        # active_mask = np.equal(matchups[:, :, None], active_in_period[None, :])  # (M,2,n_active)
+        # mus = self.mus[matchups]
+        # phis = self.phis[matchups]
+        # sigmas = self.sigmas[matchups]
+        # gs = self.g_vector(phis)
+        # mu_diffs = mus[:,0] - mus[:,1]
+        # probs = sigmoid(gs * mu_diffs) # (M,2) where col 0 is prob_2 and col 1 is prob_1
 
     def f(self, x, delta2, phi2, v, a):
         ex = math.exp(x)
@@ -135,13 +143,13 @@ class Glicko2(OnlineRatingSystem):
             phi_2 = self.phis[comp_2]
             g_1 = self.g_scalar(phi_1)
             g_2 = self.g_scalar(phi_2)
-            p_1 = sigmoid_scalar(g_1 * mu_diff)
-            p_2 = sigmoid_scalar(-g_2 * mu_diff)
-            v_1 = 1.0 / ((g_1**2.0) * p_1 * (1.0 - p_1))
-            v_2 = 1.0 / ((g_2**2.0) * p_2 * (1.0 - p_2))
+            p_1 = sigmoid_scalar(g_2 * mu_diff)
+            p_2 = sigmoid_scalar(-g_1 * mu_diff)
+            v_1 = 1.0 / ((g_2**2.0) * p_1 * (1.0 - p_1))
+            v_2 = 1.0 / ((g_1**2.0) * p_2 * (1.0 - p_2))
 
-            delta_1 = v_1 * g_1 * (outcomes[idx] - p_1)
-            delta_2 = v_2 * g_2 * (1.0 - outcomes[idx] - p_2)
+            delta_1 = v_1 * g_2 * (outcomes[idx] - p_1)
+            delta_2 = v_2 * g_1 * (1.0 - outcomes[idx] - p_2)
 
             sigma_star_1 = self.get_sigma_star(phi_1, delta_1, v_1, self.sigmas[comp_1])
             sigma_star_2 = self.get_sigma_star(phi_2, delta_2, v_2, self.sigmas[comp_2])
@@ -152,9 +160,6 @@ class Glicko2(OnlineRatingSystem):
             # I guess don't do this since I update them all at the beginning?
             phi_star_1 = (self.phis[comp_1] ** 2.0) + (sigma_star_1**2.0)
             phi_star_2 = (self.phis[comp_2] ** 2.0) + (sigma_star_2**2.0)
-
-            # phi_star_1 = self.phis[comp_1] ** 2.0
-            # phi_star_2 = self.phis[comp_2] ** 2.0
 
             self.phis[comp_1] = 1.0 / math.sqrt((1.0 / phi_star_1) + (1.0 / (v_1**2.0)))
             self.phis[comp_2] = 1.0 / math.sqrt((1.0 / phi_star_2) + (1.0 / (v_2**2.0)))
