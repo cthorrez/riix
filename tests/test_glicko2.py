@@ -20,3 +20,4 @@ def test_glicko2():
     model.fit_dataset(dataset)
     # this is a really weak tolerance but alas Mr. Glickoman rounded to 4 decimal points at each step of the example
     assert model.mus[0] == pytest.approx(-0.2069, rel=5e-4)
+    assert model.phis[0] == pytest.approx(0.8722, rel=1e-8)

@@ -65,9 +65,9 @@ class Glicko2(OnlineRatingSystem):
         phi_1 = self.phis[matchups[:, 0]]
         phi_2 = self.phis[matchups[:, 1]]
         # the papers and theory seem to indicate this...
-        # combined_phi = self.g_vector(np.sqrt(np.square(phi_1) + np.square(phi_2)))
+        combined_phi = self.g_vector(np.sqrt(np.square(phi_1) + np.square(phi_2)))
         # but this seems to work better...
-        combined_phi = self.g_vector(phi_1 + phi_2)
+        # combined_phi = self.g_vector(phi_1 + phi_2)
         probs = sigmoid(combined_phi * mu_diff)
         return probs
 
