@@ -99,7 +99,7 @@ class Glicko(OnlineRatingSystem):
         )
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, use_cache=False):
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.increase_rating_dev(matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
@@ -109,6 +109,8 @@ class Glicko(OnlineRatingSystem):
         g_rating_devs = self.g(self.rating_devs[matchups])
         probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
+
+        print(probs_1)
 
         tmp = np.stack([probs_1 * (1.0 - probs_1), probs_2 * (1.0 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
         d2 = 1.0 / ((tmp[:, :, None] * masks).sum(axis=(0, 1)) * Q2)
