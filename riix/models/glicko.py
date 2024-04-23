@@ -44,6 +44,7 @@ class Glicko(OnlineRatingSystem):
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.rating_devs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating_dev
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
+        self.prev_time_step = 0
         self.do_weird_prob = do_weird_prob
 
         if update_method == 'batched':
@@ -90,18 +91,20 @@ class Glicko(OnlineRatingSystem):
         ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
         return ratings
 
-    def increase_rating_dev(self, matchups):
+    def increase_rating_dev(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
+        time_delta = time_step - self.prev_time_step
         self.rating_devs[self.has_played] = np.minimum(
-            np.sqrt(np.square(self.rating_devs[self.has_played]) + self.c2), self.initial_rating_dev
+            np.sqrt(np.square(self.rating_devs[self.has_played]) + (time_delta * self.c2)), self.initial_rating_dev
         )
+        self.prev_time_step = time_step
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
+    def batched_update(self, time_step, matchups, outcomes, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
-        active_in_period = self.increase_rating_dev(matchups)
+        active_in_period = self.increase_rating_dev(time_step, matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         ratings = self.ratings[matchups]
@@ -109,8 +112,6 @@ class Glicko(OnlineRatingSystem):
         g_rating_devs = self.g(self.rating_devs[matchups])
         probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
-
-        print(probs_1)
 
         tmp = np.stack([probs_1 * (1.0 - probs_1), probs_2 * (1.0 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
         d2 = 1.0 / ((tmp[:, :, None] * masks).sum(axis=(0, 1)) * Q2)
@@ -124,9 +125,9 @@ class Glicko(OnlineRatingSystem):
         self.ratings[active_in_period] += r_num / r_denom
         self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def iterative_update(self, time_step, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(matchups)
+        self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]

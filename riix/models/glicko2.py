@@ -37,6 +37,7 @@ class Glicko2(OnlineRatingSystem):
         self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + self.initial_phi
         self.sigmas = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
+        self.prev_time_step = 0
         self.tau = tau
         self.tau2 = tau**2.0
         self.epsilon = epsilon
@@ -77,13 +78,16 @@ class Glicko2(OnlineRatingSystem):
         ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
         return ratings
 
-    def increase_rating_dev(self, matchups):
+    def increase_rating_dev(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""
         active_in_period = np.unique(matchups)
         self.has_played[active_in_period] = True
+        time_delta = time_step - self.prev_time_step
         self.phis[self.has_played] = np.minimum(
-            np.sqrt(np.square(self.phis[self.has_played]) + np.square(self.sigmas[self.has_played])), self.initial_phi
+            np.sqrt(np.square(self.phis[self.has_played]) + (time_delta * np.square(self.sigmas[self.has_played]))),
+            self.initial_phi,
         )
+        self.prev_time_step = time_step
         return active_in_period
 
     def batched_update(self, matchups, outcomes, **kwargs):
@@ -161,9 +165,9 @@ class Glicko2(OnlineRatingSystem):
         sigma_prime = math.exp(A / 2.0)
         return sigma_prime
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def iterative_update(self, time_step, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(matchups)
+        self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             mu_1 = self.mus[comp_1]
