@@ -90,17 +90,19 @@ class Glicko2(OnlineRatingSystem):
         self.prev_time_step = time_step
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, **kwargs):
+    def batched_update(self, matchups, outcomes, time_step, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)  # (n_active,)
         self.has_played[active_in_period] = True
 
         # update phi for players who have played but are not active in this rating period
+
         inactive_mask = np.ones(self.num_competitors, dtype=np.bool_)
         inactive_mask[active_in_period] = False
         update_phi_mask = self.has_played & inactive_mask
+        time_delta = time_step - self.prev_time_step
         self.phis[update_phi_mask] = np.sqrt(
-            np.square(self.phis[update_phi_mask]) + np.square(self.sigmas[update_phi_mask])
+            np.square(self.phis[update_phi_mask]) + (time_delta * np.square(self.sigmas[update_phi_mask]))
         )
 
         active_mask = np.equal(matchups[:, :, None], active_in_period[None, :])  # (M,2,n_active)
@@ -122,7 +124,7 @@ class Glicko2(OnlineRatingSystem):
                 phi=self.phis[comp], delta=deltas[idx], v=vs[idx], sigma=self.sigmas[comp]
             )
 
-        phi_stars_squared = np.square(self.phis[active_in_period]) + np.square(sigma_primes)
+        phi_stars_squared = np.square(self.phis[active_in_period]) + (time_delta * np.square(sigma_primes))
         phi_primes = 1.0 / np.sqrt((1.0 / phi_stars_squared) + (1.0 / vs))
 
         mu_updates = np.square(phi_primes) * grads
@@ -130,6 +132,7 @@ class Glicko2(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates
         self.phis[active_in_period] = phi_primes
         self.sigmas[active_in_period] = sigma_primes
+        self.prev_time_step = time_step
 
     def f(self, x, delta2, phi2, v, a):
         ex = math.exp(x)
@@ -165,7 +168,7 @@ class Glicko2(OnlineRatingSystem):
         sigma_prime = math.exp(A / 2.0)
         return sigma_prime
 
-    def iterative_update(self, time_step, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):

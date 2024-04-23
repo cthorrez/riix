@@ -102,7 +102,7 @@ class Glicko(OnlineRatingSystem):
         self.prev_time_step = time_step
         return active_in_period
 
-    def batched_update(self, time_step, matchups, outcomes, use_cache=False, **kwargs):
+    def batched_update(self, matchups, outcomes, time_step, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.increase_rating_dev(time_step, matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
@@ -125,7 +125,7 @@ class Glicko(OnlineRatingSystem):
         self.ratings[active_in_period] += r_num / r_denom
         self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
 
-    def iterative_update(self, time_step, matchups, outcomes, **kwargs):
+    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
