@@ -76,7 +76,7 @@ class Elo(OnlineRatingSystem):
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
 
-    def batched_update(self, matchups, outcomes, use_cache):
+    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
         """
         Apply a single update based on all results of the rating period.
 

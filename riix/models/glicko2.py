@@ -94,9 +94,7 @@ class Glicko2(OnlineRatingSystem):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)  # (n_active,)
         self.has_played[active_in_period] = True
-
         # update phi for players who have played but are not active in this rating period
-
         inactive_mask = np.ones(self.num_competitors, dtype=np.bool_)
         inactive_mask[active_in_period] = False
         update_phi_mask = self.has_played & inactive_mask
@@ -170,7 +168,18 @@ class Glicko2(OnlineRatingSystem):
 
     def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(time_step, matchups)
+        # self.increase_rating_dev(time_step, matchups)
+        active_in_period = np.unique(matchups)  # (n_active,)
+        self.has_played[active_in_period] = True
+        # update phi for players who have played but are not active in this rating period
+        inactive_mask = np.ones(self.num_competitors, dtype=np.bool_)
+        inactive_mask[active_in_period] = False
+        update_phi_mask = self.has_played & inactive_mask
+        time_delta = time_step - self.prev_time_step
+        self.phis[update_phi_mask] = np.minimum(
+            np.sqrt(np.square(self.phis[update_phi_mask]) + (time_delta * np.square(self.sigmas[update_phi_mask]))),
+            self.initial_phi,
+        )
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             mu_1 = self.mus[comp_1]
