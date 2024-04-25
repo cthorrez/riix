@@ -44,7 +44,7 @@ class Glicko(OnlineRatingSystem):
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.rating_devs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating_dev
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
-        self.prev_time_step = 0
+        self.prev_time_step = -1
         self.do_weird_prob = do_weird_prob
 
         if update_method == 'batched':

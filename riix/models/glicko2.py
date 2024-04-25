@@ -27,7 +27,6 @@ class Glicko2(OnlineRatingSystem):
         tau: float = 0.5,
         epsilon: float = 1e-6,
         dtype=np.float64,
-        # update_method='iterative',
         update_method='batched',
     ):
         """Initializes the Glicko rating system with the given parameters."""
@@ -37,7 +36,7 @@ class Glicko2(OnlineRatingSystem):
         self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + self.initial_phi
         self.sigmas = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
-        self.prev_time_step = 0
+        self.prev_time_step = -1
         self.tau = tau
         self.tau2 = tau**2.0
         self.epsilon = epsilon
@@ -168,18 +167,8 @@ class Glicko2(OnlineRatingSystem):
 
     def iterative_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        # self.increase_rating_dev(time_step, matchups)
-        active_in_period = np.unique(matchups)  # (n_active,)
-        self.has_played[active_in_period] = True
-        # update phi for players who have played but are not active in this rating period
-        inactive_mask = np.ones(self.num_competitors, dtype=np.bool_)
-        inactive_mask[active_in_period] = False
-        update_phi_mask = self.has_played & inactive_mask
-        time_delta = time_step - self.prev_time_step
-        self.phis[update_phi_mask] = np.minimum(
-            np.sqrt(np.square(self.phis[update_phi_mask]) + (time_delta * np.square(self.sigmas[update_phi_mask]))),
-            self.initial_phi,
-        )
+        # increase the phi's once at the beginning of the rating period with the prior sigma
+        self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             mu_1 = self.mus[comp_1]
@@ -200,15 +189,14 @@ class Glicko2(OnlineRatingSystem):
             sigma_star_1 = self.get_sigma_prime(phi_1, delta_1, v_1, self.sigmas[comp_1])
             sigma_star_2 = self.get_sigma_prime(phi_2, delta_2, v_2, self.sigmas[comp_2])
 
+            # update the sigmas for each match
             self.sigmas[comp_1] = sigma_star_1
             self.sigmas[comp_2] = sigma_star_2
 
-            # I guess don't do this since I update them all at the beginning?
-            phi_star_1 = (self.phis[comp_1] ** 2.0) + (sigma_star_1**2.0)
-            phi_star_2 = (self.phis[comp_2] ** 2.0) + (sigma_star_2**2.0)
-
-            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / phi_star_1) + (1.0 / (v_1**2.0)))
-            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / phi_star_2) + (1.0 / (v_2**2.0)))
+            # update the phis in each match
+            # we do not need to update the phis for the passage of time during each match, that's done before the loop
+            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / phi_1) + (1.0 / (v_1**2.0)))
+            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / phi_2) + (1.0 / (v_2**2.0)))
 
             self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_1 * (outcomes[idx] - p_1)
             self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_2 * (1.0 - outcomes[idx] - p_2)
