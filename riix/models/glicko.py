@@ -53,7 +53,7 @@ class Glicko(OnlineRatingSystem):
             self.update = self.iterative_update
 
     @staticmethod
-    def g(rating_dev):
+    def g_vector(rating_dev):
         """
         Calculates the g function as part of the Glicko rating system.
 
@@ -68,6 +68,10 @@ class Glicko(OnlineRatingSystem):
         """
         return 1.0 / np.sqrt(1.0 + (Q2_3 * np.square(rating_dev)) / PI2)
 
+    @staticmethod
+    def g_scalar(rating_dev):
+        return 1.0 / math.sqrt(1.0 + (Q2_3 * (rating_dev) ** 2.0) / PI2)
+
     # TODO should Glicko probs incorporate the dev increase?
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """generate predictions"""
@@ -81,7 +85,7 @@ class Glicko(OnlineRatingSystem):
         else:
             rating_devs_1 = self.rating_devs[matchups[:, 0]]
             rating_devs_2 = self.rating_devs[matchups[:, 1]]
-            combined_dev = self.g(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
+            combined_dev = self.g_vector(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
             probs = sigmoid(Q * combined_dev * rating_diffs)
         return probs
 
@@ -109,7 +113,7 @@ class Glicko(OnlineRatingSystem):
 
         ratings = self.ratings[matchups]
         rating_diffs = ratings[:, 0] - ratings[:, 1]
-        g_rating_devs = self.g(self.rating_devs[matchups])
+        g_rating_devs = self.g_vector(self.rating_devs[matchups])
         probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
 
@@ -131,7 +135,7 @@ class Glicko(OnlineRatingSystem):
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            g_rating_devs = self.g(self.rating_devs[matchups[idx]])
+            g_rating_devs = self.g_vector(self.rating_devs[matchups[idx]])
             g_rating_devs_2 = np.square(g_rating_devs)
             prob_1 = sigmoid_scalar(Q * g_rating_devs[1] * rating_diff)
             prob_2 = sigmoid_scalar(-Q * g_rating_devs[0] * rating_diff)
@@ -141,6 +145,7 @@ class Glicko(OnlineRatingSystem):
             r2_num = Q * g_rating_devs[0] * (1.0 - outcomes[idx] - prob_2)
             r1_denom = (1.0 / (self.rating_devs[comp_1] ** 2.0)) + (1.0 / d2_1)
             r2_denom = (1.0 / (self.rating_devs[comp_2] ** 2.0)) + (1.0 / d2_2)
+
             self.ratings[comp_1] += r1_num / r1_denom
             self.ratings[comp_2] += r2_num / r2_denom
             self.rating_devs[comp_1] = 1.0 / math.sqrt(r1_denom)

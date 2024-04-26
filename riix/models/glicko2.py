@@ -27,12 +27,14 @@ class Glicko2(OnlineRatingSystem):
         tau: float = 0.5,
         epsilon: float = 1e-6,
         dtype=np.float64,
-        update_method='batched',
+        # update_method='batched',
+        update_method='iterative',
     ):
         """Initializes the Glicko rating system with the given parameters."""
         super().__init__(competitors)
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + ((initial_rating - 1500.0) / 173.7178)
         self.initial_phi = initial_rd / 173.7178
+
         self.phis = np.zeros(shape=self.num_competitors, dtype=dtype) + self.initial_phi
         self.sigmas = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_sigma
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
@@ -98,8 +100,9 @@ class Glicko2(OnlineRatingSystem):
         inactive_mask[active_in_period] = False
         update_phi_mask = self.has_played & inactive_mask
         time_delta = time_step - self.prev_time_step
-        self.phis[update_phi_mask] = np.sqrt(
-            np.square(self.phis[update_phi_mask]) + (time_delta * np.square(self.sigmas[update_phi_mask]))
+        self.phis[update_phi_mask] = np.minimum(
+            np.sqrt(np.square(self.phis[update_phi_mask]) + (time_delta * np.square(self.sigmas[update_phi_mask]))),
+            self.initial_phi,
         )
 
         active_mask = np.equal(matchups[:, :, None], active_in_period[None, :])  # (M,2,n_active)
@@ -195,11 +198,11 @@ class Glicko2(OnlineRatingSystem):
 
             # update the phis in each match
             # we do not need to update the phis for the passage of time during each match, that's done before the loop
-            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / phi_1) + (1.0 / (v_1**2.0)))
-            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / phi_2) + (1.0 / (v_2**2.0)))
+            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / (phi_1**2.0)) + (1.0 / v_1))
+            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / (phi_2**2.0)) + (1.0 / v_2))
 
-            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_1 * (outcomes[idx] - p_1)
-            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_2 * (1.0 - outcomes[idx] - p_2)
+            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_2 * (outcomes[idx] - p_1)
+            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_1 * (1.0 - outcomes[idx] - p_2)
 
     def print_leaderboard(self, num_places):
         sort_array = self.mus - (3.0 * np.square(self.phis))
