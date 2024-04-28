@@ -24,6 +24,7 @@ class Glicko(OnlineRatingSystem):
         c: float = 63.2,
         dtype=np.float64,
         update_method='iterative',
+        # update_method='batched',
         do_weird_prob=False,
     ):
         """
