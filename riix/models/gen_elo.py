@@ -31,9 +31,10 @@ class GenElo(OnlineRatingSystem):
         self.b_over_2 = b / 2.0
         self.b_squared = b**2.0
         sigma_squared = sigma**2.0
-        self.sigma_2_delta_inv = 1.0 / (2.0 * sigma_squared)
+        sigma_delta_squared = 2.0 * sigma_squared  # the var of the differece is the sum of the vars
+        self.sigma_2_delta_inv = 1.0 / sigma_delta_squared
         if use_approx:
-            self.alpha = math.sqrt(1.0 + ((math.pi * sigma_squared * self.b_squared) / 8.0))
+            self.alpha = math.sqrt(1.0 + ((math.pi * sigma_delta_squared * self.b_squared) / 8.0))
         else:
             self.alpha = 1.0
 
@@ -74,7 +75,7 @@ class GenElo(OnlineRatingSystem):
         for idx, (comp_1, comp_2) in enumerate(matchups):
             mu_1 = self.mus[comp_1]
             mu_2 = self.mus[comp_2]
-            prob = sigmoid_scalar(self.b * (mu_1 - mu_2) / self.alpha)
+            prob = sigmoid_scalar(self.b * (mu_1 - mu_2))
             k = self.b_over_2 / ((self.sigma_2_delta_inv) + (self.b_squared * prob * (1.0 - prob)))
             delta = k * (outcomes[idx] - prob)
             self.mus[comp_1] += delta
