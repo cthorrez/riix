@@ -136,7 +136,6 @@ class TrueSkill(OnlineRatingSystem):
                 v, w = v_and_w_win_scalar(norm_diff * sign_multiplier, self.epsilon / combined_dev)
             else:
                 v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
-                print(v, w)
 
             mu_updates = (sigma2s / combined_dev) * v * sign_multiplier
             sigma2_updates = (np.square(sigma2s) / combined_sigma2) * w
