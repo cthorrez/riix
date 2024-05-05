@@ -78,7 +78,7 @@ def v_and_w_draw_vector(t, eps):
     w[w_bad_mask] = 1.0
 
     w_num = (diff_a[w_good_mask] * pdf_a[w_good_mask]) - (diff_b[w_good_mask] * pdf_b[w_good_mask])
-    w[w_good_mask] = (w_num / shared_denom[w_good_mask]) * np.square(v[w_good_mask])
+    w[w_good_mask] = (w_num / shared_denom[w_good_mask]) + np.square(v[w_good_mask])
     return v, w
 
 
@@ -116,5 +116,5 @@ def v_and_w_draw_scalar(t, eps):
         w = 1.0
     else:
         w_num = (diff_a * pdf_a) - (diff_b * pdf_b)
-        w = math.copysign(1.0, t) * (w_num / shared_denom) * (v**2.0)
+        w = math.copysign(1.0, t) * ((w_num / shared_denom) + (v**2.0))
     return v, w

@@ -71,7 +71,7 @@ class TrueSkill(OnlineRatingSystem):
         self.prev_time_step = time_step
         return active_in_period
 
-    def batched_update(self, time_step, matchups, outcomes, use_cache=False, **kwargs):
+    def batched_update(self, matchups, outcomes, time_step, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.increase_rating_dev(time_step, matchups)
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
@@ -136,6 +136,7 @@ class TrueSkill(OnlineRatingSystem):
                 v, w = v_and_w_win_scalar(norm_diff * sign_multiplier, self.epsilon / combined_dev)
             else:
                 v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
+                print(v, w)
 
             mu_updates = (sigma2s / combined_dev) * v * sign_multiplier
             sigma2_updates = (np.square(sigma2s) / combined_sigma2) * w
