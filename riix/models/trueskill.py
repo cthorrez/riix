@@ -112,7 +112,9 @@ class TrueSkill(OnlineRatingSystem):
 
         sigma2_updates = (np.square(sigma2s) * ws[:, None]) / combined_sigma2s[:, None]
         mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
-        sigma2_updates_pooled = (sigma2_updates[:, :, None] * masks).mean((0, 1))
+
+        matchups_per_competitor = np.sum(masks, axis=(0, 1))
+        sigma2_updates_pooled = (sigma2_updates[:, :, None] * masks).sum(axis=(0, 1)) / matchups_per_competitor
 
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] -= sigma2_updates_pooled
@@ -122,7 +124,6 @@ class TrueSkill(OnlineRatingSystem):
         self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
-            # self.sigma2s[matchups[idx]] += self.tau_squared
             rating_diff = self.mus[comp_1] - self.mus[comp_2]
             sigma2s = self.sigma2s[matchups[idx]]
 
