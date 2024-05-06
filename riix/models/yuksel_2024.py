@@ -1,8 +1,8 @@
 """
 The rating system by Cem Yuksel, 2024
-paper: http://www.cemyuksel.com/research/matchmaking/i3d2024-matchmaking.pdf
-supplemental: http://www.cemyuksel.com/research/matchmaking/i3d2024-matchmaking-supplemental.pdf
-webpage: http://www.cemyuksel.com/research/matchmaking/
+  * paper: http://www.cemyuksel.com/research/matchmaking/i3d2024-matchmaking.pdf
+  * supplemental: http://www.cemyuksel.com/research/matchmaking/i3d2024-matchmaking-supplemental.pdf
+  * webpage: http://www.cemyuksel.com/research/matchmaking/
 """
 import math
 import numpy as np
@@ -12,7 +12,9 @@ from riix.utils.constants import Q, Q2_3_OVER_PI2
 
 
 class Yuksel2024(OnlineRatingSystem):
-    """put a docstring"""
+    """
+    The rating system presented in Skill-Based Matchmaking for Competitive Two-Player Games by Cem Yuksel
+    """
 
     rating_dim = 2
 
