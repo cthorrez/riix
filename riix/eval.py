@@ -56,6 +56,7 @@ def grid_search(
         eval_wrapper,
         rating_system_class=rating_system_class,
         dataset=dataset,
+        test_dataset=test_dataset,
     )
     all_metrics = list(map_fn(func, param_configurations))
     if num_processes:
