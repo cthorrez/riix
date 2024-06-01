@@ -9,32 +9,28 @@ from riix.utils.data_utils import MatchupDataset
 from riix.metrics import binary_metrics_suite
 
 
-def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, test_dataset=None):
+def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, metrics_mask: np.ndarray):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
-    if test_dataset is None:
-        probs = model.fit_dataset(dataset, return_pre_match_probs=True)
-        outcomes = dataset.outcomes
-    if test_dataset is not None:
-        model.fit_dataset(dataset, return_pre_match_probs=False)
-        probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
-        outcomes = test_dataset.outcomes
+
+    probs = model.fit_dataset(dataset, return_pre_match_probs=True)[metrics_mask]
+    outcomes = dataset.outcomes[metrics_mask]
     duration = time.time() - start_time
     metrics = binary_metrics_suite(probs, outcomes)
     metrics['duration'] = duration
     return metrics
 
 
-def eval_wrapper(params, rating_system_class, dataset, test_dataset=None):
+def eval_wrapper(params, rating_system_class, dataset, metrics_mask):
     model = rating_system_class(competitors=dataset.competitors, **params)
-    return evaluate(model, dataset, test_dataset=test_dataset)
+    return evaluate(model, dataset, metrics_mask)
 
 
 def grid_search(
     rating_system_class,
     dataset,
+    metrics_mask,
     param_configurations=None,
-    test_dataset=None,
     metric='log_loss',
     minimize_metric=True,
     num_processes=None,
@@ -56,7 +52,7 @@ def grid_search(
         eval_wrapper,
         rating_system_class=rating_system_class,
         dataset=dataset,
-        test_dataset=test_dataset,
+        metrics_mask=metrics_mask
     )
     all_metrics = list(map_fn(func, param_configurations))
     if num_processes:
