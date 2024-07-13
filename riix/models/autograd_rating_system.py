@@ -71,7 +71,9 @@ class AutogradRatingSystem(OnlineRatingSystem):
             matchups: Matchup information for the rating period.
             outcomes: Results of the matchups.
         """
-        raise NotImplementedError
+        grad = self.grad_fn(self.ratings, jnp.array(matchups), jnp.array(outcomes))
+        update = grad * self.learning_rate
+        self.ratings -= update
 
     def iterative_update(self, matchups, outcomes, **kwargs):
         """
