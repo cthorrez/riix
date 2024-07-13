@@ -5,21 +5,22 @@ import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 import jax.numpy as jnp
-from jax import grad
+from jax import grad, jit
+import jax.nn
 
-
+@jit
 def logistic_predict(ratings, matchups, alpha=math.log(10.0) / 400.0):
     matchup_ratings = ratings[matchups]
     neg_rating_diffs = matchup_ratings[:, 1] - matchup_ratings[:, 0]
-    probs = 1.0 / (1.0 + jnp.exp(alpha * neg_rating_diffs))
+    probs = jax.nn.sigmoid(alpha * neg_rating_diffs)
     return probs
 
-
+@jit
 def logistic_likelihood(ratings, matchups, outcomes, alpha=math.log(10.0) / 400.0):
     matchup_ratings = ratings[matchups]
     neg_rating_diffs = matchup_ratings[:, 1] - matchup_ratings[:, 0]
-    probs = 1.0 / (1.0 + jnp.exp(alpha * neg_rating_diffs))
-    return jnp.log(outcomes - probs).sum()
+    probs = jax.nn.sigmoid(alpha * neg_rating_diffs)
+    return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum() / alpha
 
 
 class AutogradRatingSystem(OnlineRatingSystem):
@@ -33,13 +34,14 @@ class AutogradRatingSystem(OnlineRatingSystem):
         predict_fn: callable = logistic_predict,
         likelihood_fn: callable = logistic_likelihood,
         learning_rate: float = 32.0,
+        initial_rating: float = 1500.0,
         update_method: str = 'iterative',
-        dtype=np.float64,
+        dtype=jnp.float32,
     ):
         """Initialize the rating system"""
         super().__init__(competitors)
 
-        self.ratings = jnp.zeros(shape=self.num_competitors, dtype=dtype)
+        self.ratings = jnp.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
 
         self.predict_fn = predict_fn
         self.grad_fn = grad(likelihood_fn)
@@ -54,7 +56,9 @@ class AutogradRatingSystem(OnlineRatingSystem):
         """
         Generates predictions for a series of matchups between competitors.
         """
-        return self.predict_fn(self.ratings, matchups)
+        probs = self.predict_fn(self.ratings, matchups)
+        # print(probs)
+        return probs
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
@@ -79,9 +83,15 @@ class AutogradRatingSystem(OnlineRatingSystem):
         """
         for idx in range(matchups.shape[0]):
             matchup = matchups[idx : idx + 1, :]
-            outcome = outcomes[idx, idx + 1]
+            outcome = outcomes[idx : idx + 1]
             grad = self.grad_fn(self.ratings, jnp.array(matchup), jnp.array(outcome))
-            self.ratings += self.learning_rate * grad
+            update = grad * self.learning_rate
+            self.ratings -= update
 
     def print_leaderboard(self, num_places):
-        raise NotImplementedError
+        sorted_idxs = np.argsort(-self.ratings)[:num_places]
+        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
+        print(f'{"competitor": <{max_len}}\t{"rating"}')
+        for p_idx in range(num_places):
+            comp_idx = sorted_idxs[p_idx]
+            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
