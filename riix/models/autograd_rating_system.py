@@ -20,7 +20,7 @@ def logistic_likelihood(ratings, matchups, outcomes, alpha=math.log(10.0) / 400.
     matchup_ratings = ratings[matchups]
     neg_rating_diffs = matchup_ratings[:, 1] - matchup_ratings[:, 0]
     probs = jax.nn.sigmoid(alpha * neg_rating_diffs)
-    return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum() / alpha
+    return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum()
 
 
 class AutogradRatingSystem(OnlineRatingSystem):
@@ -33,7 +33,7 @@ class AutogradRatingSystem(OnlineRatingSystem):
         competitors: list,
         predict_fn: callable = logistic_predict,
         likelihood_fn: callable = logistic_likelihood,
-        learning_rate: float = 32.0,
+        learning_rate: float = 32.0 / (math.log(10.0) / 400.0),
         initial_rating: float = 1500.0,
         update_method: str = 'iterative',
         dtype=jnp.float32,
