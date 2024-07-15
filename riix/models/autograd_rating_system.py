@@ -7,20 +7,7 @@ from riix.core.base import OnlineRatingSystem
 import jax.numpy as jnp
 from jax import grad, jit
 import jax.nn
-
-@jit
-def logistic_predict(ratings, matchups, alpha=math.log(10.0) / 400.0):
-    matchup_ratings = ratings[matchups]
-    neg_rating_diffs = matchup_ratings[:, 1] - matchup_ratings[:, 0]
-    probs = jax.nn.sigmoid(alpha * neg_rating_diffs)
-    return probs
-
-@jit
-def logistic_likelihood(ratings, matchups, outcomes, alpha=math.log(10.0) / 400.0):
-    matchup_ratings = ratings[matchups]
-    neg_rating_diffs = matchup_ratings[:, 1] - matchup_ratings[:, 0]
-    probs = jax.nn.sigmoid(alpha * neg_rating_diffs)
-    return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum()
+from jax.scipy.stats import logistic
 
 
 class AutogradRatingSystem(OnlineRatingSystem):
@@ -31,9 +18,9 @@ class AutogradRatingSystem(OnlineRatingSystem):
     def __init__(
         self,
         competitors: list,
-        predict_fn: callable = logistic_predict,
-        likelihood_fn: callable = logistic_likelihood,
-        learning_rate: float = 32.0 / (math.log(10.0) / 400.0),
+        cdf: callable = logistic.cdf,
+        scale: float = 400.0 / math.log(10.0),
+        learning_rate: float = 32.0,
         initial_rating: float = 1500.0,
         update_method: str = 'iterative',
         dtype=jnp.float32,
@@ -42,10 +29,27 @@ class AutogradRatingSystem(OnlineRatingSystem):
         super().__init__(competitors)
 
         self.ratings = jnp.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
+        self.cdf = cdf
+        self.scale = scale
 
-        self.predict_fn = predict_fn
+        @jit
+        def likelihood_fn(ratings, matchups, outcomes):
+            matchup_ratings = ratings[matchups]
+            rating_diffs = matchup_ratings[:, 0] - matchup_ratings[:, 1]
+            probs = self.cdf(rating_diffs / self.scale)
+            return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum()
+        
+        @jit
+        def _predict_fn(ratings, matchups):
+            matchup_ratings = ratings[matchups]
+            rating_diffs = matchup_ratings[:, 0] - matchup_ratings[:, 1]
+            probs = self.cdf(rating_diffs / self.scale)
+            return probs
+        self.predict_fn = _predict_fn
+        
+
         self.grad_fn = grad(likelihood_fn)
-        self.learning_rate = learning_rate
+        self.learning_rate = learning_rate * scale
 
         if update_method == 'batched':
             self.update = self.batched_update
@@ -56,9 +60,7 @@ class AutogradRatingSystem(OnlineRatingSystem):
         """
         Generates predictions for a series of matchups between competitors.
         """
-        probs = self.predict_fn(self.ratings, matchups)
-        # print(probs)
-        return probs
+        return self.predict_fn(self.ratings, matchups)
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
