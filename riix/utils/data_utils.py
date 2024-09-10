@@ -79,6 +79,7 @@ class MatchupDataset:
                 outcomes=self.outcomes[key],
                 competitors=self.competitors,
             )
+            slice_dataset.competitor_to_idx = self.competitor_to_idx
             return slice_dataset
         else:
             raise ValueError('you can only index MatchupDataset with a slice')
