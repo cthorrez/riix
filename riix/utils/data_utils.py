@@ -42,10 +42,12 @@ class MatchupDataset:
         self.process_time_steps()
 
         # map competitor names/ids to integers
-        self.competitors = sorted(pd.unique(df[competitor_cols].astype(str).values.ravel('K')).tolist())
+        self.num_matchups = len(df)
+        comp_idxs, competitors = pd.factorize(pd.concat([df[competitor_cols[0]], df[competitor_cols[1]]]), sort=True)
+        self.competitors = competitors.to_list()
         self.num_competitors = len(self.competitors)
         self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
-        self.matchups = df[competitor_cols].map(lambda comp: self.competitor_to_idx[str(comp)]).values.astype(np.int64)
+        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]])
         self.outcomes = df[outcome_col].values.astype(np.float64)
 
         if verbose:
