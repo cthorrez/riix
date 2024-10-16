@@ -30,7 +30,10 @@ class MatchupDataset:
             self.time_steps = df[time_step_col].astype(np.int64)
         else:
             if datetime_col:
-                epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
+                if df[datetime_col].dtype == 'datetime64[ms]':
+                    epoch_times = df[datetime_col].values.astype(np.int64) // 10**3
+                else:
+                    epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
             if timestamp_col:
                 epoch_times = df[timestamp_col].values.astype(np.int64)
 
@@ -118,6 +121,26 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
     print(f'split into train_dataset of length {len(train_dataset)} and test_dataset of length {len(test_dataset)}')
     return train_dataset, test_dataset
 
+class BasicMatchupDataset:
+    def __init__(
+        self, 
+        df: pd.DataFrame,
+        competitor_cols: List[str],
+        outcome_col: str
+    ):
+        self.num_matchups = len(df)
+        comp_idxs, competitors = pd.factorize(pd.concat([df[competitor_cols[0]], df[competitor_cols[1]]]), sort=True)
+        self.competitors = competitors.to_list()
+        self.num_competitors = len(self.competitors)
+        self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
+        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]])
+        self.outcomes = df[outcome_col].values.astype(np.float64)
+    
+    def __iter__(self):
+        for idx in range(self.num_competitors):
+            yield self.matchups[idx], self.outcomes[idx]
+        # for matchup, outcome in zip(self.matchups, self.outcomes):
+        #     yield matchup, outcome
 
 def generate_matchup_data(
     num_matchups: int = 10000,
