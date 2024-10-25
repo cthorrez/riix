@@ -43,8 +43,13 @@ class MatchupDataset:
 
         # map competitor names/ids to integers
         self.num_matchups = len(df)
-        comp_idxs, competitors = pd.factorize(pd.concat([df[competitor_cols[0]], df[competitor_cols[1]]]), sort=True)
-        self.competitors = competitors.to_list()
+    
+        str_competitors = pd.concat([
+            df[competitor_cols[0]].astype(str),
+            df[competitor_cols[1]].astype(str)
+        ])
+        comp_idxs, competitors = pd.factorize(str_competitors, sort=True)
+        self.competitors = competitors.tolist()
         self.num_competitors = len(self.competitors)
         self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
         self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]])
