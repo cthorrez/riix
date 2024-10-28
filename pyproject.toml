@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "riix"
-version = "0.0.3"
+version = "0.0.4"
 description = "vectorized implementations of online rating systems"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -14,7 +14,7 @@ authors = [
 dependencies = [
     "numpy",
     "scipy",
-    "pandas",
+    "polars",
     "jax",
 ]
 keywords = ["rating system", "paired comparison"]

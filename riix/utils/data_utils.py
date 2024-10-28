@@ -4,66 +4,67 @@ import math
 import time
 from typing import List
 import numpy as np
-import pandas as pd
-
+import polars as pl
+from riix.utils.date_utils import get_duration
 
 class MatchupDataset:
     """class for loading and iterating over paired comparison data"""
 
     def __init__(
         self,
-        df: pd.DataFrame,
+        df: pl.DataFrame,
         competitor_cols: List[str],
         outcome_col: str,
         datetime_col: str = None,
-        timestamp_col: str = None,
         time_step_col: str = None,
         rating_period: str = '1W',
         verbose: bool = True,
     ):
         if len(competitor_cols) != 2:
             raise ValueError('must specify exactly 2 competitor columns')
-        if (bool(datetime_col) + bool(timestamp_col) + bool(time_step_col)) != 1:
+        if (bool(datetime_col) + bool(time_step_col)) != 1:
             raise ValueError('must specify only one of time_step_col, datetime_col, timestamp_col')
-
         if time_step_col:
-            self.time_steps = df[time_step_col].astype(np.int64)
+            self.time_steps = df[time_step_col]
         else:
-            if datetime_col:
-                if df[datetime_col].dtype == 'datetime64[ms]':
-                    epoch_times = df[datetime_col].values.astype(np.int64) // 10**3
-                else:
-                    epoch_times = pd.to_datetime(df[datetime_col]).values.astype(np.int64) // 10**9
-            if timestamp_col:
-                epoch_times = df[timestamp_col].values.astype(np.int64)
+            if df[datetime_col].dtype == pl.Datetime("ms"):
+                datetime = df[datetime_col]
+            elif df.schema[datetime_col] == pl.Date:
+                datetime = df[datetime_col].cast(pl.Datetime)
+            elif df.schema[datetime_col] == pl.Utf8:
+                datetime = df[datetime_col].str.strptime(pl.Datetime, '%Y-%m-%d')
+            else:
+                raise ValueError('datetime_col must be one of Date, Datetime, or Utf8')
+            seconds_since_epoch = (datetime.dt.timestamp() // 1_000_000).to_numpy()
+            rating_period_duration_in_seconds = get_duration(rating_period)
+            first_time = seconds_since_epoch[0]
+            seconds_since_first_time = seconds_since_epoch - first_time
+            self.time_steps = seconds_since_first_time // rating_period_duration_in_seconds
 
-            first_time = epoch_times[0]
-            epoch_times = epoch_times - first_time
-            period_delta = int(pd.Timedelta(rating_period).total_seconds())
-            self.time_steps = epoch_times // period_delta
         self.time_steps = self.time_steps.astype(np.int32)
-
         self.process_time_steps()
 
-        # map competitor names/ids to integers
         self.num_matchups = len(df)
-    
-        str_competitors = pd.concat([
-            df[competitor_cols[0]].astype(str),
-            df[competitor_cols[1]].astype(str)
+        str_competitors = pl.concat([
+            df[competitor_cols[0]].cast(pl.Utf8).alias('competitor'),
+            df[competitor_cols[1]].cast(pl.Utf8).alias('competitor')
         ])
-        comp_idxs, competitors = pd.factorize(str_competitors, sort=True)
-        self.competitors = competitors.tolist()
+        self.competitors = str_competitors.unique().sort().to_list()
         self.num_competitors = len(self.competitors)
         self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
-        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]]).astype(np.int32)
-        self.outcomes = df[outcome_col].values.astype(np.float64)
+        comp_idxs_1 = df[competitor_cols[0]].cast(pl.Utf8).map_elements(lambda x: self.competitor_to_idx[x], return_dtype=pl.Int32)
+        comp_idxs_2 = df[competitor_cols[1]].cast(pl.Utf8).map_elements(lambda x: self.competitor_to_idx[x], return_dtype=pl.Int32)
+        self.matchups = np.hstack([
+            comp_idxs_1.to_numpy()[:,None],
+            comp_idxs_2.to_numpy()[:,None],
+        ])
+        self.outcomes = df[outcome_col].to_numpy()
 
         if verbose:
             print('loaded dataset with:')
             print(f'{self.matchups.shape[0]} matchups')
             print(f'{len(self.competitors)} unique competitors')
-            print(f'{self.unique_time_steps.max()} rating periods of length {rating_period}')
+            print(f'{self.unique_time_steps.max() + 1} rating periods of length {rating_period}')
 
     def process_time_steps(self):
         self.unique_time_steps, unique_time_step_indices = np.unique(self.time_steps, return_index=True)
@@ -127,27 +128,6 @@ def split_matchup_dataset(dataset, test_fraction=0.2):
     print(f'split into train_dataset of length {len(train_dataset)} and test_dataset of length {len(test_dataset)}')
     return train_dataset, test_dataset
 
-class BasicMatchupDataset:
-    def __init__(
-        self, 
-        df: pd.DataFrame,
-        competitor_cols: List[str],
-        outcome_col: str
-    ):
-        self.num_matchups = len(df)
-        comp_idxs, competitors = pd.factorize(pd.concat([df[competitor_cols[0]], df[competitor_cols[1]]]), sort=True)
-        self.competitors = competitors.to_list()
-        self.num_competitors = len(self.competitors)
-        self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
-        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]])
-        self.outcomes = df[outcome_col].values.astype(np.float64)
-    
-    def __iter__(self):
-        for idx in range(self.num_competitors):
-            yield self.matchups[idx], self.outcomes[idx]
-        # for matchup, outcome in zip(self.matchups, self.outcomes):
-        #     yield matchup, outcome
-
 def generate_matchup_data(
     num_matchups: int = 10000,
     num_competitors: int = 100,
@@ -184,14 +164,18 @@ def generate_matchup_data(
     outcomes = rng.multinomial(n=1, pvals=probs)
     outcomes = np.argmax(outcomes, axis=1) / 2.0  # map 0->0, 1->0.5, 2->1.0
 
-    data = {
+    df = pl.DataFrame({
         'timestamp': timestamps,
         'competitor_1': matchups[:, 0],
         'competitor_2': matchups[:, 1],
         'outcome': outcomes,
-    }
-    df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['timestamp'], unit='s')
-    df['competitor_1'] = 'competitor_' + df['competitor_1'].astype(str)
-    df['competitor_2'] = 'competitor_' + df['competitor_2'].astype(str)
+    })
+    df = (
+        df.with_columns([
+            (pl.col('timestamp') * 1000).cast(pl.Datetime('ms')).alias('date'),
+            pl.concat_str([pl.lit('competitor_'), pl.col('competitor_1').cast(pl.Utf8)]).alias('competitor_1'),
+            pl.concat_str([pl.lit('competitor_'), pl.col('competitor_2').cast(pl.Utf8)]).alias('competitor_2')
+        ])
+        .drop('timestamp')
+    )
     return df

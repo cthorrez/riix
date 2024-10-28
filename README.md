@@ -27,7 +27,7 @@ from riix.models.elo import Elo
 from riix.utils import MatchupDataset, split_matchup_dataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
 
-df = generate_matchup_data() # replace with your pandas dataframe
+df = generate_matchup_data() # replace with your **polars** dataframe
 dataset = MatchupDataset(
     df,
     competitor_cols=['competitor_1', 'competitor_2'],
