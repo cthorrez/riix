@@ -9,10 +9,11 @@ from riix.utils.data_utils import MatchupDataset
 from riix.metrics import binary_metrics_suite
 
 
-def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, metrics_mask: np.ndarray):
+def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, metrics_mask: np.ndarray=None):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
-
+    if metrics_mask is None:
+        metrics_mask = np.ones(len(dataset), dtype=bool_)
     probs = model.fit_dataset(dataset, return_pre_match_probs=True)[metrics_mask]
     outcomes = dataset.outcomes[metrics_mask]
     duration = time.time() - start_time

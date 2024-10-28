@@ -41,6 +41,7 @@ class MatchupDataset:
             epoch_times = epoch_times - first_time
             period_delta = int(pd.Timedelta(rating_period).total_seconds())
             self.time_steps = epoch_times // period_delta
+        self.time_steps = self.time_steps.astype(np.int32)
 
         self.process_time_steps()
 
@@ -55,7 +56,7 @@ class MatchupDataset:
         self.competitors = competitors.tolist()
         self.num_competitors = len(self.competitors)
         self.competitor_to_idx = {comp: idx for idx, comp in enumerate(self.competitors)}
-        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]])
+        self.matchups = np.column_stack([comp_idxs[:self.num_matchups], comp_idxs[self.num_matchups:]]).astype(np.int32)
         self.outcomes = df[outcome_col].values.astype(np.float64)
 
         if verbose:
