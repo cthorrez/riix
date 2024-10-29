@@ -32,7 +32,11 @@ class MatchupDataset:
             elif df.schema[datetime_col] == pl.Date:
                 datetime = df[datetime_col].cast(pl.Datetime)
             elif df.schema[datetime_col] == pl.Utf8:
-                datetime = df[datetime_col].str.strptime(pl.Datetime, '%Y-%m-%dT%H:%M:%S%.f')
+                datetime = df.with_columns(
+                    pl.when(pl.col(datetime_col).str.contains(r'^\d{4}-\d{2}-\d{2}$'))  # Match 'yyyy-mm-dd'
+                    .then(pl.col(datetime_col).str.to_date('%Y-%m-%d'))
+                    .otherwise(pl.col(datetime_col).str.strptime(pl.Datetime, '%Y-%m-%dT%H:%M:%S%.f', strict=False))
+                )[datetime_col]
             else:
                 raise ValueError('datetime_col must be one of Date, Datetime, or Utf8')
             seconds_since_epoch = (datetime.dt.timestamp() // 1_000_000).to_numpy()
