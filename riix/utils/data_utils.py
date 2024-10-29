@@ -51,8 +51,8 @@ class MatchupDataset:
         # Create a single competitors reference dataframe
         competitors_df = pl.DataFrame(
             {'competitor': pl.concat([
-                df[competitor_cols[0]].cast(pl.Utf8),
-                df[competitor_cols[1]].cast(pl.Utf8)
+                df[competitor_cols[0]].cast(pl.Utf8).fill_null(''),
+                df[competitor_cols[1]].cast(pl.Utf8).fill_null('')
             ]).unique().sort()
         }).lazy().select(
             pl.all(),
@@ -63,8 +63,8 @@ class MatchupDataset:
         self.competitor_to_idx = dict(zip(self.competitors, range(self.num_competitors)))
         matchups_df = (df.lazy()
             .select([
-                pl.col(competitor_cols[0]).cast(pl.Utf8).alias('comp1'),
-                pl.col(competitor_cols[1]).cast(pl.Utf8).alias('comp2')
+                pl.col(competitor_cols[0]).cast(pl.Utf8).fill_null('').alias('comp1'),
+                pl.col(competitor_cols[1]).cast(pl.Utf8).fill_null('').alias('comp2')
             ])
             .join(
                 competitors_df,
