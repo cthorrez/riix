@@ -35,7 +35,6 @@ def grid_search(
     metric='log_loss',
     minimize_metric=True,
     num_processes=None,
-    seed=0,
     return_all_metrics=False,
 ):
     """Perform grid search and return the best hyperparameters."""
