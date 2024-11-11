@@ -19,7 +19,7 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         initial_u: float = 1.0,
         initial_v: float = 1.0,
         eta: float = 0.02,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -31,8 +31,8 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         us = self.us[matchups]
@@ -62,7 +62,7 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
             u_1, u_2 = self.us[matchups[idx]]

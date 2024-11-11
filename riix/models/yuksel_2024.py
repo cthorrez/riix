@@ -25,7 +25,7 @@ class Yuksel2024(OnlineRatingSystem):
         delta_r_max: float = 350.0,
         alpha: float = 2.0,
         scaling_factor: float = 0.9,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         """Initialize the rating system"""
@@ -41,8 +41,8 @@ class Yuksel2024(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -68,7 +68,7 @@ class Yuksel2024(OnlineRatingSystem):
     def g_scalar(phi):
         return 1.0 / math.sqrt(1.0 + (Q2_3_OVER_PI2 * (phi**2.0)))
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 

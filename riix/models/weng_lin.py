@@ -21,7 +21,7 @@ class WengLin(OnlineRatingSystem):
         kappa: float = 0.0001,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         model='tm',
         dtype=np.float64,
     ):
@@ -39,8 +39,8 @@ class WengLin(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
         if model == 'bt':
             self.model_func = self.bradley_terry_scalar_updates
@@ -139,7 +139,7 @@ class WengLin(OnlineRatingSystem):
         etas = gammas * (sigma2s / combined_sigma2) * w
         return deltas, etas
 
-    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
+    def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):

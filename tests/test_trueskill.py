@@ -27,8 +27,8 @@ def general_trueskill(update_method):
     return model
 
 
-def test_trueskill_iterative():
-    model = general_trueskill('iterative')
+def test_trueskill_online():
+    model = general_trueskill('online')
     assert model.mus[0] == pytest.approx(29.396, rel=1e-4)
     assert model.mus[1] == pytest.approx(20.604, rel=1e-4)
     assert math.sqrt(model.sigma2s[0]) == pytest.approx(7.171, rel=1e-4)

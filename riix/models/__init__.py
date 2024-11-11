@@ -8,7 +8,7 @@ Included Rating Systems:
 - Elo: A simple and widely used rating system that adjusts player ratings based on match outcomes.
 - Elomentum: Enhances the Elo system by incorporating momentum into rating adjustments.
 - Glicko: An advanced system extending Elo by introducing rating deviation and volatility.
-- Iterative Markov: Uses Markov assumptions for iterative rating updates.
+- online Markov: Uses Markov assumptions for online rating updates.
 - Melo: A variation of the Elo rating system with multidimensional representations.
 - Online Disc Decomposition: A machine learning approach for rating updates.
 - SKF: Implements simplified Kalman filters for rating estimation.

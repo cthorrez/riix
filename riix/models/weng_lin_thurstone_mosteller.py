@@ -20,7 +20,7 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         kappa: float = 0.0001,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -35,8 +35,8 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
         self.cache = {}
 
     @property
@@ -120,7 +120,7 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]

@@ -22,7 +22,7 @@ class AutogradRatingSystem(OnlineRatingSystem):
         scale: float = 400.0 / math.log(10.0),
         learning_rate: float = 32.0,
         initial_rating: float = 1500.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=jnp.float32,
     ):
         """Initialize the rating system"""
@@ -53,8 +53,8 @@ class AutogradRatingSystem(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -77,7 +77,7 @@ class AutogradRatingSystem(OnlineRatingSystem):
         update = grad * self.learning_rate
         self.ratings -= update
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 

@@ -76,9 +76,9 @@ class OnlineRatingSystem(ABC):
         """
         raise NotImplementedError
 
-    def iterative_update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: int, use_cache=False, **kwargs):
+    def online_update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: int, use_cache=False, **kwargs):
         """
-        Updates player ratings iteratively for each matchup and outcome pair within a given time step treating them as if they were sequential
+        Updates player ratings onlinely for each matchup and outcome pair within a given time step treating them as if they were sequential
         This can be slower than batch processing but potentially more accurate by avoiding certain numerical issues
 
         Parameters:

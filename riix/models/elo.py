@@ -18,7 +18,7 @@ class Elo(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         k: float = 32.0,
         alpha: float = math.log(10.0) / 400.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         """
@@ -29,7 +29,7 @@ class Elo(OnlineRatingSystem):
             initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
             k (float, optional): The K-factor, which controls the rate at which ratings change. Defaults to 32.0.
             alpha (float, optional): Scaling factor used in the calculation of expected scores. Defaults to log(10) / 400.
-            update_method (str, optional): Method used to update ratings ('iterative' or other methods if implemented). Defaults to 'iterative'.
+            update_method (str, optional): Method used to update ratings ('online' or other methods if implemented). Defaults to 'online'.
             dtype: The data type for internal numpy computations. Defaults to np.float64.
 
         Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.
@@ -41,8 +41,8 @@ class Elo(OnlineRatingSystem):
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -96,7 +96,7 @@ class Elo(OnlineRatingSystem):
         per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 

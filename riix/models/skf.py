@@ -47,7 +47,7 @@ class VSKF(OnlineRatingSystem):
         epsilon: float = 1e-2,
         dtype=np.float64,
         model='bt',  # legal values are bt, tm, and dd
-        update_method='iterative',
+        update_method='online',
     ):
         super().__init__(competitors)
         self.mus = np.zeros(self.num_competitors, dtype=dtype) + mu_0
@@ -62,8 +62,8 @@ class VSKF(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
         if model == 'bt':
             self.predict_func = bradley_terry_prob
@@ -133,7 +133,7 @@ class VSKF(OnlineRatingSystem):
         self.mus[active_in_period] += self.vs[active_in_period] * mu_updates_pooled
         self.vs[active_in_period] *= v_updates_pooled
 
-    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
+    def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.time_dynamics_update(time_step, matchups)
         for idx in range(matchups.shape[0]):

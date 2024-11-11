@@ -40,7 +40,7 @@ class Melo(Elo):
         eta_r: float = 32.0,  # this is the normal elo k factor
         eta_c: float = 0.125,  # 1 is bad: https://dclaz.github.io/mELO/articles/03_noise.html#simulations-1
         alpha: float = math.log(10.0) / 400.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         OnlineRatingSystem.__init__(self, competitors)
@@ -61,8 +61,8 @@ class Melo(Elo):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        if update_method == 'iterative':
-            self.update = self.iterative_update
+        if update_method == 'online':
+            self.update = self.online_update
 
         self.cache = {'probs': None, 'c_1_times_omega': None}
 
@@ -112,7 +112,7 @@ class Melo(Elo):
         self.ratings[active_in_period] += self.eta_r * per_competitor_diff
         self.c[active_in_period] += c_updates_pooled
 
-    def iterative_update(self, matchups, outcomes, use_cache=False, **kwargs):
+    def online_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]

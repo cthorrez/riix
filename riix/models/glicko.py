@@ -23,7 +23,7 @@ class Glicko(OnlineRatingSystem):
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
         dtype=np.float64,
-        update_method='iterative',
+        update_method='online',
         # update_method='batched',
         do_weird_prob=False,
     ):
@@ -36,7 +36,7 @@ class Glicko(OnlineRatingSystem):
             initial_rating_dev (float, optional): The initial rating deviation for new competitors. Defaults to 350.0.
             c (float, optional): Constant used to adjust the rate of change of the rating deviation. Defaults to 63.2.
             dtype (data-type, optional): The desired data-type for the ratings and deviations arrays. Defaults to np.float64.
-            update_method (str, optional): Method used for updating ratings ('iterative' or another specified method). Defaults to 'iterative'.
+            update_method (str, optional): Method used for updating ratings ('online' or another specified method). Defaults to 'online'.
             do_weird_prob (bool, optional): If set to True, applies an alternative probability calculation. Defaults to False.
         """
         super().__init__(competitors)
@@ -50,8 +50,8 @@ class Glicko(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     @staticmethod
     def g_vector(rating_dev):
@@ -130,7 +130,7 @@ class Glicko(OnlineRatingSystem):
         self.ratings[active_in_period] += r_num / r_denom
         self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
 
-    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
+    def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):

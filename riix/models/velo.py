@@ -28,7 +28,7 @@ class vElo(OnlineRatingSystem):
         sigma_reduction_factor: float = 1 / 5,  # A in the paper
         sigma_lower_bound: float = 0.4,  # B in the paper
         b: float = 1.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -41,8 +41,8 @@ class vElo(OnlineRatingSystem):
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -63,7 +63,7 @@ class vElo(OnlineRatingSystem):
         """apply one update based on all of the results of the rating period"""
         raise NotImplementedError
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]

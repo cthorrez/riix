@@ -28,7 +28,7 @@ class Glicko2(OnlineRatingSystem):
         epsilon: float = 1e-6,
         dtype=np.float64,
         # update_method='batched',
-        update_method='iterative',
+        update_method='online',
     ):
         """Initializes the Glicko rating system with the given parameters."""
         super().__init__(competitors)
@@ -45,8 +45,8 @@ class Glicko2(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     @staticmethod
     def g_scalar(phi):
@@ -168,7 +168,7 @@ class Glicko2(OnlineRatingSystem):
         sigma_prime = math.exp(A / 2.0)
         return sigma_prime
 
-    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
+    def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         # increase the phi's once at the beginning of the rating period with the prior sigma
         self.increase_rating_dev(time_step, matchups)

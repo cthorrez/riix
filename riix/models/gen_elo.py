@@ -21,7 +21,7 @@ class GenElo(OnlineRatingSystem):
         b: float = math.log(10.0) / 400.0,  # the temperature of the softmax
         sigma: float = 60.0,
         use_approx: bool = True,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         """Initialize the rating system"""
@@ -40,8 +40,8 @@ class GenElo(OnlineRatingSystem):
 
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -64,7 +64,7 @@ class GenElo(OnlineRatingSystem):
         """
         raise NotImplementedError
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 

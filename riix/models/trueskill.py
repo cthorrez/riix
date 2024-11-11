@@ -19,7 +19,8 @@ class TrueSkill(OnlineRatingSystem):
         beta: float = 4.166,
         tau: float = 0.0833,
         draw_probability=0.0,
-        update_method: str = 'iterative',
+        update_method: str = 'batched',
+        variance_increase_method = 'time',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -35,8 +36,9 @@ class TrueSkill(OnlineRatingSystem):
         self.cache = {'combined_devs': None, 'norm_diffs': None}
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
+        self.variance_increase_method = variance_increase_method
 
     @property
     def ratings(self):
@@ -64,16 +66,23 @@ class TrueSkill(OnlineRatingSystem):
 
     def increase_rating_dev(self, time_step, matchups):
         """called once per period to model the increase in variance over time"""
-        active_in_period = np.unique(matchups)
+        active_in_period, counts = np.unique(matchups, return_counts=True)
         self.has_played[active_in_period] = True
-        time_delta = time_step - self.prev_time_step
-        self.sigma2s[self.has_played] += time_delta * self.tau_squared  # increase var for active players
+        if self.variance_increase_method == 'time':
+            # increase var according to time since played
+            time_delta = time_step - self.prev_time_step
+            self.sigma2s[self.has_played] += time_delta * self.tau_squared 
+        else: # self.variance_increase_method == 'match':
+            # increase var according to the number of matches played
+            self.sigma2s[active_in_period] += counts * self.tau_squared
         self.prev_time_step = time_step
         return active_in_period
 
     def batched_update(self, matchups, outcomes, time_step, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
+
         active_in_period = self.increase_rating_dev(time_step, matchups)
+
         masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         sigma2s = self.sigma2s[matchups]
@@ -119,11 +128,14 @@ class TrueSkill(OnlineRatingSystem):
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] -= sigma2_updates_pooled
 
-    def iterative_update(self, matchups, outcomes, time_step, **kwargs):
+    def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(time_step, matchups)
+        if self.variance_increase_method == 'time':
+            self.increase_rating_dev(time_step, matchups)
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]
+            if self.variance_increase_method == 'match':
+                self.sigma2s[matchups[idx]] += self.tau_squared
             rating_diff = self.mus[comp_1] - self.mus[comp_2]
             sigma2s = self.sigma2s[matchups[idx]]
 

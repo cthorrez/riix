@@ -22,7 +22,7 @@ class OnlineRaoKupper(OnlineRatingSystem):
         theta: float = 2.0,
         step_size: float = 32.0,
         temperature: float = math.log(10.0) / 400.0,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         """
@@ -40,8 +40,8 @@ class OnlineRaoKupper(OnlineRatingSystem):
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -79,7 +79,7 @@ class OnlineRaoKupper(OnlineRatingSystem):
         """
         raise NotImplementedError
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 

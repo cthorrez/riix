@@ -18,7 +18,7 @@ class TemporalMassey(Elo):
         initial_rating: float = 1.0,
         alpha: float = 0.95,
         beta: float = 0.05,
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         OnlineRatingSystem.__init__(self, competitors)
@@ -34,8 +34,8 @@ class TemporalMassey(Elo):
         self.cache = {'probs': None}
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
@@ -71,7 +71,7 @@ class TemporalMassey(Elo):
         """apply one update based on all of the results of the rating period"""
         pass
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         for idx in range(matchups.shape[0]):
             comp_1, comp_2 = matchups[idx]

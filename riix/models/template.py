@@ -12,7 +12,7 @@ class Template(OnlineRatingSystem):
         self,
         competitors: list,
         argument: str = 'lorem ipsum',
-        update_method: str = 'iterative',
+        update_method: str = 'online',
         dtype=np.float64,
     ):
         """Initialize the rating system"""
@@ -20,8 +20,8 @@ class Template(OnlineRatingSystem):
         self.argument = argument
         if update_method == 'batched':
             self.update = self.batched_update
-        elif update_method == 'iterative':
-            self.update = self.iterative_update
+        elif update_method == 'online':
+            self.update = self.online_update
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -42,7 +42,7 @@ class Template(OnlineRatingSystem):
         """
         raise NotImplementedError
 
-    def iterative_update(self, matchups, outcomes, **kwargs):
+    def online_update(self, matchups, outcomes, **kwargs):
         """
         Treats the matchups in the rating period as sequential events.
 
