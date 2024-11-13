@@ -40,6 +40,8 @@ class ConstantVarianceGlicko(OnlineRatingSystem):
             self.update = self.batched_update
         elif update_method == 'online':
             self.update = self.online_update
+        else:
+            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """

@@ -41,6 +41,8 @@ class WengLin(OnlineRatingSystem):
             self.update = self.batched_update
         elif update_method == 'online':
             self.update = self.online_update
+        else:
+            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
         if model == 'bt':
             self.model_func = self.bradley_terry_scalar_updates

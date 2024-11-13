@@ -47,6 +47,8 @@ class Glicko2(OnlineRatingSystem):
             self.update = self.batched_update
         elif update_method == 'online':
             self.update = self.online_update
+        else:
+            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     @staticmethod
     def g_scalar(phi):
