@@ -91,7 +91,7 @@ riix    </h1>
 
 <div class="pdoc-code codehilite">
 <pre><span></span><code><span class="kn">from</span> <span class="nn"><a href="riix/models/elo.html">riix.models.elo</a></span> <span class="kn">import</span> <span class="n">Elo</span>
-<span class="kn">from</span> <span class="nn"><a href="riix/utils.html">riix.utils</a></span> <span class="kn">import</span> <span class="n">TimedPairDataset</span><span class="p">,</span> <span class="n">split_matchup_dataset</span><span class="p">,</span> <span class="n">generate_matchup_data</span>
+<span class="kn">from</span> <span class="nn"><a href="riix/utils.html">riix.utils</a></span> <span class="kn">import</span> <span class="n">TimedPairDataset</span><span class="p">,</span> <span class="n">split_pair_dataset</span><span class="p">,</span> <span class="n">generate_matchup_data</span>
 <span class="kn">from</span> <span class="nn"><a href="riix/metrics.html">riix.metrics</a></span> <span class="kn">import</span> <span class="n">binary_metrics_suite</span>
 
 <span class="n">df</span> <span class="o">=</span> <span class="n">generate_matchup_data</span><span class="p">()</span> <span class="c1"># replace with your **polars** dataframe</span>
@@ -102,7 +102,7 @@ riix    </h1>
     <span class="n">datetime_col</span><span class="o">=</span><span class="s1">&#39;date&#39;</span><span class="p">,</span>
     <span class="n">rating_period</span><span class="o">=</span><span class="s1">&#39;1D&#39;</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">split_matchup_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+<span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">split_pair_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span><span class="si">=}</span><span class="s1">, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">)</span><span class="si">=}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 <span class="o">&gt;&gt;&gt;</span> <span class="n">loaded</span> <span class="n">dataset</span> <span class="k">with</span><span class="p">:</span>

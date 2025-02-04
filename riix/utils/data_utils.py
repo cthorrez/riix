@@ -141,7 +141,7 @@ class TimedPairDataset:
         return dataset
 
 
-def split_matchup_dataset(dataset, test_fraction=0.2):
+def split_pair_dataset(dataset, test_fraction=0.2):
     split_idx = math.ceil(len(dataset) * (1.0 - test_fraction))
     train_dataset = dataset[:split_idx]
     test_dataset = dataset[split_idx:]

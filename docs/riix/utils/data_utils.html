@@ -72,7 +72,7 @@
 
             </li>
             <li>
-                    <a class="function" href="#split_matchup_dataset">split_matchup_dataset</a>
+                    <a class="function" href="#split_pair_dataset">split_pair_dataset</a>
             </li>
             <li>
                     <a class="function" href="#generate_matchup_data">generate_matchup_data</a>
@@ -223,7 +223,7 @@
 </span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a>        <span class="k">return</span> <span class="n">dataset</span>
 </span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a>
 </span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a>
-</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="k">def</span> <span class="nf">split_matchup_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="k">def</span> <span class="nf">split_pair_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
 </span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a>    <span class="n">split_idx</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">test_fraction</span><span class="p">))</span>
 </span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a>    <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[:</span><span class="n">split_idx</span><span class="p">]</span>
 </span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a>    <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">split_idx</span><span class="p">:]</span>
@@ -643,23 +643,23 @@
 
                             </div>
                 </section>
-                <section id="split_matchup_dataset">
-                            <input id="split_matchup_dataset-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+                <section id="split_pair_dataset">
+                            <input id="split_pair_dataset-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">split_matchup_dataset</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">dataset</span>, </span><span class="param"><span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span></span><span class="return-annotation">):</span></span>
+        <span class="name">split_pair_dataset</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">dataset</span>, </span><span class="param"><span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span></span><span class="return-annotation">):</span></span>
 
-                <label class="view-source-button" for="split_matchup_dataset-view-source"><span>View Source</span></label>
+                <label class="view-source-button" for="split_pair_dataset-view-source"><span>View Source</span></label>
 
     </div>
-    <a class="headerlink" href="#split_matchup_dataset"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="split_matchup_dataset-125"><a href="#split_matchup_dataset-125"><span class="linenos">125</span></a><span class="k">def</span> <span class="nf">split_matchup_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
-</span><span id="split_matchup_dataset-126"><a href="#split_matchup_dataset-126"><span class="linenos">126</span></a>    <span class="n">split_idx</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">test_fraction</span><span class="p">))</span>
-</span><span id="split_matchup_dataset-127"><a href="#split_matchup_dataset-127"><span class="linenos">127</span></a>    <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[:</span><span class="n">split_idx</span><span class="p">]</span>
-</span><span id="split_matchup_dataset-128"><a href="#split_matchup_dataset-128"><span class="linenos">128</span></a>    <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">split_idx</span><span class="p">:]</span>
-</span><span id="split_matchup_dataset-129"><a href="#split_matchup_dataset-129"><span class="linenos">129</span></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;split into train_dataset of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span><span class="si">}</span><span class="s1"> and test_dataset of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-</span><span id="split_matchup_dataset-130"><a href="#split_matchup_dataset-130"><span class="linenos">130</span></a>    <span class="k">return</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span>
+    <a class="headerlink" href="#split_pair_dataset"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="split_pair_dataset-125"><a href="#split_pair_dataset-125"><span class="linenos">125</span></a><span class="k">def</span> <span class="nf">split_pair_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">test_fraction</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+</span><span id="split_pair_dataset-126"><a href="#split_pair_dataset-126"><span class="linenos">126</span></a>    <span class="n">split_idx</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">test_fraction</span><span class="p">))</span>
+</span><span id="split_pair_dataset-127"><a href="#split_pair_dataset-127"><span class="linenos">127</span></a>    <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[:</span><span class="n">split_idx</span><span class="p">]</span>
+</span><span id="split_pair_dataset-128"><a href="#split_pair_dataset-128"><span class="linenos">128</span></a>    <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">split_idx</span><span class="p">:]</span>
+</span><span id="split_pair_dataset-129"><a href="#split_pair_dataset-129"><span class="linenos">129</span></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;split into train_dataset of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span><span class="si">}</span><span class="s1"> and test_dataset of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">test_dataset</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</span><span id="split_pair_dataset-130"><a href="#split_pair_dataset-130"><span class="linenos">130</span></a>    <span class="k">return</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">test_dataset</span>
 </span></pre></div>
 
 

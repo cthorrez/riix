@@ -24,7 +24,7 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```python
 from riix.models.elo import Elo
-from riix.utils import TimedPairDataset, split_matchup_dataset, generate_matchup_data
+from riix.utils import TimedPairDataset, split_pair_dataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
 
 df = generate_matchup_data() # replace with your **polars** dataframe
@@ -35,7 +35,7 @@ dataset = TimedPairDataset(
     datetime_col='date',
     rating_period='1D',
 )
-train_dataset, test_dataset = split_matchup_dataset(dataset, test_fraction=0.2)
+train_dataset, test_dataset = split_pair_dataset(dataset, test_fraction=0.2)
 print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 
 >>> loaded dataset with:
