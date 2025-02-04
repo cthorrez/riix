@@ -9,7 +9,7 @@ from riix.utils.date_utils import get_duration
 
 
 class PairDataset:
-    """Base class for loading and iterating over paired comparison data."""
+    """Base class for paired comparison datasets without temporal information."""
 
     def __init__(
         self,
@@ -18,91 +18,81 @@ class PairDataset:
         outcome_col: str,
         verbose: bool = True,
     ):
-        if len(competitor_cols) != 2:
-            raise ValueError('Must specify exactly 2 competitor columns')
+        self._init_competitors(df, competitor_cols)
+        self._init_matchups(df, competitor_cols)
+        self.outcomes = df[outcome_col].to_numpy()
+        
+        if verbose:
+            self._print_stats()
 
-        # Create a single competitors reference dataframe
-        competitors_df = pl.DataFrame(
-            {'competitor': pl.concat([
-                df[competitor_cols[0]].cast(pl.Utf8),
-                df[competitor_cols[1]].cast(pl.Utf8)
-            ]).unique().sort()
-        }).lazy().select(
-            pl.all(),
-            pl.int_range(pl.len(), dtype=pl.Int32).alias('index')
-        )
-        self.competitors = sorted(competitors_df.collect()['competitor'].to_list())
+    def _init_competitors(self, df: pl.DataFrame, competitor_cols: List[str]):
+        """Initialize competitor metadata."""
+        competitor_series = pl.concat([df[col].cast(pl.Utf8) for col in competitor_cols])
+        self.competitors = sorted(competitor_series.unique().to_list())
         self.num_competitors = len(self.competitors)
         self.competitor_to_idx = dict(zip(self.competitors, range(self.num_competitors)))
 
-        # Create matchups array
-        matchups_df = (df.lazy()
+    def _init_matchups(self, df: pl.DataFrame, competitor_cols: List[str]):
+        """Create numerical matchup indices."""
+        competitors_df = pl.DataFrame({'competitor': self.competitors}).lazy()
+        
+        matchups_df = (
+            df.lazy()
             .select([
                 pl.col(competitor_cols[0]).cast(pl.Utf8).alias('comp1'),
                 pl.col(competitor_cols[1]).cast(pl.Utf8).alias('comp2')
             ])
             .join(
-                competitors_df,
+                competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index1')),
                 left_on='comp1',
                 right_on='competitor'
-            ).rename({'index': 'index1'})
+            )
             .join(
-                competitors_df,
+                competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index2')),
                 left_on='comp2',
                 right_on='competitor'
-            ).rename({'index': 'index2'})
+            )
             .select(['index1', 'index2'])
         )
         self.matchups = np.ascontiguousarray(matchups_df.collect().to_numpy())
 
-        # Store outcomes
-        self.outcomes = df[outcome_col].to_numpy()
-
-        if verbose:
-            print('Loaded dataset with:')
-            print(f'{self.matchups.shape[0]} matchups')
-            print(f'{len(self.competitors)} unique competitors')
+    def _print_stats(self):
+        """Print dataset statistics."""
+        print('Loaded dataset with:')
+        print(f'{len(self)} matchups')
+        print(f'{self.num_competitors} unique competitors')
 
     def __len__(self):
         return self.matchups.shape[0]
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            slice_dataset = self.init_from_arrays(
-                matchups=self.matchups[key, :],
-                outcomes=self.outcomes[key],
-                competitors=self.competitors,
-            )
-            slice_dataset.competitor_to_idx = self.competitor_to_idx
-            return slice_dataset
-        else:
-            raise ValueError('You can only index PairDataset with a slice')
+            return self._create_slice(key)
+        raise ValueError('Only slice indexing supported')
+
+    def _create_slice(self, key: slice):
+        """Create sliced dataset instance."""
+        slice_data = {
+            'matchups': self.matchups[key],
+            'outcomes': self.outcomes[key],
+            'competitors': self.competitors,
+        }
+        return self.init_from_arrays(**slice_data)
 
     @classmethod
-    def init_from_arrays(cls, matchups, outcomes, competitors):
+    def init_from_arrays(cls, matchups: np.ndarray, outcomes: np.ndarray, competitors: list):
+        """Factory method for creating datasets from arrays."""
         dataset = cls.__new__(cls)
-        dataset.outcomes = outcomes
         dataset.matchups = matchups
+        dataset.outcomes = outcomes
         dataset.competitors = competitors
         dataset.num_competitors = len(competitors)
-        return dataset
-
-    @classmethod
-    def load_from_npz(cls, path):
-        matchups, outcomes = np.load(path).values()
-        competitors = np.unique(matchups)
-        matchups = np.searchsorted(competitors, matchups)
-        dataset = cls.init_from_arrays(
-            matchups=matchups, outcomes=outcomes, competitors=competitors
-        )
-        print('Loaded dataset with:')
-        print(f'{dataset.matchups.shape[0]} matchups')
-        print(f'{len(dataset.competitors)} unique competitors')
+        dataset.competitor_to_idx = dict(zip(competitors, range(len(competitors))))
         return dataset
 
 
 class TimedPairDataset(PairDataset):
-    """Class for loading and iterating over paired comparison data with time steps."""
+    """Dataset for temporal paired comparisons with rating periods."""
 
     def __init__(
         self,
@@ -115,70 +105,73 @@ class TimedPairDataset(PairDataset):
         verbose: bool = True,
     ):
         super().__init__(df, competitor_cols, outcome_col, verbose=False)
+        self._init_time_steps(df, datetime_col, time_step_col, rating_period)
+        
+        if verbose:
+            print(f'{self.unique_time_steps.max() + 1} rating periods of length {rating_period}')
 
-        if (bool(datetime_col) + bool(time_step_col)) != 1:
-            raise ValueError('Must specify only one of time_step_col or datetime_col')
+    def _init_time_steps(self, df: pl.DataFrame, datetime_col: Optional[str], 
+                        time_step_col: Optional[str], rating_period: str):
+        """Initialize temporal components."""
+        if sum([bool(datetime_col), bool(time_step_col)]) != 1:
+            raise ValueError('Specify exactly one of datetime_col or time_step_col')
 
         if time_step_col:
             self.time_steps = df[time_step_col].to_numpy()
         else:
-            if df[datetime_col].dtype == pl.Datetime("ms"):
-                datetime = df[datetime_col]
-            elif df.schema[datetime_col] == pl.Date:
-                datetime = df[datetime_col].cast(pl.Datetime)
-            elif df.schema[datetime_col] == pl.Utf8:
-                datetime = df[datetime_col].str.to_datetime()
-            else:
-                raise ValueError('datetime_col must be one of Date, Datetime, or Utf8')
+            self.time_steps = self._convert_datetime(df[datetime_col], rating_period)
 
-            seconds_since_epoch = (datetime.dt.timestamp() // 1_000_000).to_numpy()
-            rating_period_duration_in_seconds = get_duration(rating_period)
-            first_time = seconds_since_epoch[0]
-            seconds_since_first_time = seconds_since_epoch - first_time
-            self.time_steps = (seconds_since_first_time // rating_period_duration_in_seconds).astype(np.int32)
+        self._process_time_steps()
 
-        self.process_time_steps()
+    def _convert_datetime(self, datetime_series: pl.Series, rating_period: str) -> np.ndarray:
+        """Convert datetime column to time steps."""
+        if datetime_series.dtype == pl.Date:
+            datetime_series = datetime_series.cast(pl.Datetime)
+        elif datetime_series.dtype == pl.Utf8:
+            datetime_series = datetime_series.str.to_datetime()
 
-        if verbose:
-            print(f'{self.unique_time_steps.max() + 1} rating periods of length {rating_period}')
+        seconds_since_epoch = (datetime_series.dt.timestamp() // 1_000_000).to_numpy()
+        period_seconds = get_duration(rating_period)
+        return ((seconds_since_epoch - seconds_since_epoch[0]) // period_seconds).astype(np.int32)
 
-    def process_time_steps(self):
-        self.unique_time_steps, unique_time_step_indices = np.unique(self.time_steps, return_index=True)
-        self.time_step_end_idxs = np.roll(unique_time_step_indices, shift=-1)
-        self.time_step_end_idxs[-1] = self.time_steps.shape[0]
+    def _process_time_steps(self):
+        """Calculate time period boundaries."""
+        self.unique_time_steps, time_indices = np.unique(self.time_steps, return_index=True)
+        self.time_step_end_idxs = np.roll(time_indices, -1)
+        self.time_step_end_idxs[-1] = len(self.time_steps)
+
+    def __iter__(self):
+        """Iterate through rating periods."""
+        start_idx = 0
+        for time_step, end_idx in zip(self.unique_time_steps, self.time_step_end_idxs):
+            yield self.matchups[start_idx:end_idx], self.outcomes[start_idx:end_idx], time_step
+            start_idx = end_idx
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            slice_dataset = TimedPairDataset.init_from_arrays(
-                time_steps=self.time_steps[key],
-                matchups=self.matchups[key, :],
-                outcomes=self.outcomes[key],
-                competitors=self.competitors,
-            )
-            slice_dataset.competitor_to_idx = self.competitor_to_idx
-            return slice_dataset
-        else:
-            raise ValueError('you can only index MatchupDataset with a slice')
-        
-    @classmethod
-    def init_from_arrays(cls, time_steps, matchups, outcomes, competitors):
-        dataset = cls.__new__(cls)
-        dataset.time_steps = time_steps
-        dataset.process_time_steps()
-        dataset.outcomes = outcomes
-        dataset.matchups = matchups
-        dataset.competitors = competitors
-        dataset.num_competitors = len(competitors)
+            return self._create_temporal_slice(key)
+        raise ValueError('Only slice indexing supported')
+
+    def _create_temporal_slice(self, key: slice):
+        """Create sliced temporal dataset."""
+        slice_data = {
+            'time_steps': self.time_steps[key],
+            'matchups': self.matchups[key],
+            'outcomes': self.outcomes[key],
+            'competitors': self.competitors,
+        }
+        dataset = self.init_from_arrays(**slice_data)
+        dataset._process_time_steps()
         return dataset
 
-    def __iter__(self):
-        """Iterate batches one rating period at a time."""
-        period_start_idx = 0
-        for time_step, period_end_idx in zip(self.unique_time_steps, self.time_step_end_idxs):
-            matchups = self.matchups[period_start_idx:period_end_idx, :]
-            outcomes = self.outcomes[period_start_idx:period_end_idx]
-            period_start_idx = period_end_idx
-            yield matchups, outcomes, time_step
+    @classmethod
+    def init_from_arrays(cls, time_steps: np.ndarray, matchups: np.ndarray, 
+                        outcomes: np.ndarray, competitors: list):
+        """Factory method with temporal support."""
+        dataset = super().init_from_arrays(matchups, outcomes, competitors)
+        dataset.time_steps = time_steps
+        dataset._process_time_steps()
+        return dataset
 
 
 def split_pair_dataset(dataset, test_fraction=0.2):
