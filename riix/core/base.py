@@ -2,7 +2,7 @@
 from abc import ABC
 from typing import Optional
 import numpy as np
-from riix.utils import MatchupDataset
+from riix.utils import TimedPairDataset
 
 
 class OnlineRatingSystem(ABC):
@@ -126,7 +126,7 @@ class OnlineRatingSystem(ABC):
 
     def fit_dataset(
         self,
-        dataset: MatchupDataset,
+        dataset: TimedPairDataset,
         return_pre_match_probs: bool = False,
         return_pre_match_ratings: bool = False,
         cache: bool = False,

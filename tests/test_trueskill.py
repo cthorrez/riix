@@ -5,14 +5,14 @@ import math
 import pytest
 import numpy as np
 from riix.models.trueskill import TrueSkill
-from riix.utils.data_utils import MatchupDataset
+from riix.utils.data_utils import TimedPairDataset
 
 
 def general_trueskill(update_method):
     time_steps = np.array([0, 0])
     matchups = np.array([[0, 1], [2, 3]])
     outcomes = np.array([1.0, 0.5])
-    dataset = MatchupDataset.init_from_arrays(
+    dataset = TimedPairDataset.init_from_arrays(
         time_steps=time_steps, matchups=matchups, outcomes=outcomes, competitors=[0, 1, 2, 3]
     )
     model = TrueSkill(

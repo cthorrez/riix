@@ -7,7 +7,7 @@ import numpy as np
 import polars as pl
 from riix.utils.date_utils import get_duration
 
-class MatchupDataset:
+class TimedPairDataset:
     """class for loading and iterating over paired comparison data"""
 
     def __init__(
@@ -105,7 +105,7 @@ class MatchupDataset:
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            slice_dataset = MatchupDataset.init_from_arrays(
+            slice_dataset = TimedPairDataset.init_from_arrays(
                 time_steps=self.time_steps[key],
                 matchups=self.matchups[key, :],
                 outcomes=self.outcomes[key],
@@ -114,7 +114,7 @@ class MatchupDataset:
             slice_dataset.competitor_to_idx = self.competitor_to_idx
             return slice_dataset
         else:
-            raise ValueError('you can only index MatchupDataset with a slice')
+            raise ValueError('you can only index TimedPairDataset with a slice')
 
     @classmethod
     def init_from_arrays(cls, time_steps, matchups, outcomes, competitors):

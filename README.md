@@ -24,11 +24,11 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```python
 from riix.models.elo import Elo
-from riix.utils import MatchupDataset, split_matchup_dataset, generate_matchup_data
+from riix.utils import TimedPairDataset, split_matchup_dataset, generate_matchup_data
 from riix.metrics import binary_metrics_suite
 
 df = generate_matchup_data() # replace with your **polars** dataframe
-dataset = MatchupDataset(
+dataset = TimedPairDataset(
     df,
     competitor_cols=['competitor_1', 'competitor_2'],
     outcome_col='outcome',

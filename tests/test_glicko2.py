@@ -4,14 +4,14 @@ example from: http://www.glicko.net/glicko/glicko2.pdf
 import pytest
 import numpy as np
 from riix.models.glicko2 import Glicko2
-from riix.utils.data_utils import MatchupDataset
+from riix.utils.data_utils import TimedPairDataset
 
 
 def test_glicko2():
     time_steps = np.array([0, 0, 0])  # all 3 matches are in the same time step
     matchups = np.array([[0, 1], [0, 2], [0, 3]])  # competitor 0 plays in 3 matchups
     outcomes = np.array([1.0, 0.0, 0.0])  # competitor 0 wins the first and loses the next 2
-    dataset = MatchupDataset.init_from_arrays(
+    dataset = TimedPairDataset.init_from_arrays(
         time_steps=time_steps, matchups=matchups, outcomes=outcomes, competitors=[0, 1, 2, 3]
     )
     model = Glicko2(competitors=dataset.competitors, tau=0.5, update_method='batched')

@@ -5,11 +5,11 @@ from copy import deepcopy
 from multiprocessing import Pool
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.data_utils import MatchupDataset
+from riix.utils.data_utils import TimedPairDataset
 from riix.metrics import binary_metrics_suite
 
 
-def evaluate(model: OnlineRatingSystem, dataset: MatchupDataset, metrics_mask: np.ndarray=None):
+def evaluate(model: OnlineRatingSystem, dataset: TimedPairDataset, metrics_mask: np.ndarray=None):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
     if metrics_mask is None:
