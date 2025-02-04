@@ -148,7 +148,7 @@ def split_pair_dataset(dataset, test_fraction=0.2):
     print(f'split into train_dataset of length {len(train_dataset)} and test_dataset of length {len(test_dataset)}')
     return train_dataset, test_dataset
 
-def generate_matchup_data(
+def generate_pair_data(
     num_matchups: int = 10000,
     num_competitors: int = 100,
     num_rating_periods: int = 10,
