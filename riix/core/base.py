@@ -4,21 +4,7 @@ from typing import Optional
 import numpy as np
 from riix.utils import TimedPairDataset
 
-
-class OnlineRatingSystem(ABC):
-    """
-    Base class for online rating systems. This class provides a framework for implementing
-    various online rating systems, such as Elo, Glicko, or TrueSkill. It defines the basic
-    structure and common methods that all such systems might share.
-
-    Attributes:
-        rating_dim (int): Dimension of competitor ratings. This could be 1 for systems like Elo,
-                          where each competitor has a single rating value, or more for systems
-                          like TrueSkill that use multiple values (e.g., mean and standard deviation).
-        competitors (list): A list of competitors within the rating system.
-        num_competitors (int): The number of competitors in the system.
-    """
-
+class RatingSystem(ABC):
     rating_dim: int
 
     def __init__(self, competitors):
@@ -49,6 +35,21 @@ class OnlineRatingSystem(ABC):
         set_cache: bool = False,
     ):
         raise NotImplementedError
+
+
+class OnlineRatingSystem(RatingSystem):
+    """
+    Base class for online rating systems. This class provides a framework for implementing
+    various online rating systems, such as Elo, Glicko, or TrueSkill. It defines the basic
+    structure and common methods that all such systems might share.
+
+    Attributes:
+        rating_dim (int): Dimension of competitor ratings. This could be 1 for systems like Elo,
+                          where each competitor has a single rating value, or more for systems
+                          like TrueSkill that use multiple values (e.g., mean and standard deviation).
+        competitors (list): A list of competitors within the rating system.
+        num_competitors (int): The number of competitors in the system.
+    """
 
     def update(self, matchups: np.ndarray, outcomes: np.ndarray, time_step: Optional[int], use_cache: bool = False):
         """
