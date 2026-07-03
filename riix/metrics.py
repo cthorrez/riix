@@ -21,13 +21,13 @@ def accuracy_without_draws(probs: np.ndarray, outcomes: np.ndarray) -> float:
 
 
 def accuracy_with_draws(probs: np.ndarray, outcomes: np.ndarray, draw_margin=0.0) -> float:
-    """computes accuracy while allowing for ties"""
+    """computes accuracy where probs within draw_margin of 0.5 are treated as draw predictions"""
     pos_pred_mask = probs > (0.5 + draw_margin)
     neg_pred_mask = probs < (0.5 - draw_margin)
-    draw_pred_mask = np.abs(probs - draw_margin) <= draw_margin
+    draw_pred_mask = np.abs(probs - 0.5) <= draw_margin
     correct = outcomes[pos_pred_mask].sum()
     correct += (1.0 - outcomes)[neg_pred_mask].sum()
-    correct += 2 * outcomes[draw_pred_mask].sum()  # lmao
+    correct += (outcomes[draw_pred_mask] == 0.5).sum()
     return correct / outcomes.shape[0]
 
 
@@ -46,9 +46,9 @@ def brier_score(probs: np.ndarray, outcomes: np.ndarray) -> float:
 def binary_metrics_suite(probs: np.ndarray, outcomes: np.ndarray):
     """a wrapper class for running a bunch of binary metrics"""
     metrics = {
-        'accuracy': binary_accuracy(probs, outcomes),
-        'accuracy_without_draws': accuracy_without_draws(probs, outcomes),
-        'log_loss': binary_log_loss(probs, outcomes),
-        'brier_score': brier_score(probs, outcomes),
+        'accuracy': float(binary_accuracy(probs, outcomes)),
+        'accuracy_without_draws': float(accuracy_without_draws(probs, outcomes)),
+        'log_loss': float(binary_log_loss(probs, outcomes)),
+        'brier_score': float(brier_score(probs, outcomes)),
     }
     return metrics

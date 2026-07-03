@@ -31,8 +31,8 @@ def eval_wrapper(params, rating_system_class, dataset, metrics_mask):
 def grid_search(
     rating_system_class,
     dataset,
-    metrics_mask,
-    param_configurations=None,
+    param_configurations,
+    metrics_mask=None,
     metric='log_loss',
     minimize_metric=True,
     num_processes=None,
