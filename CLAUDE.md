@@ -8,6 +8,7 @@ riix is a Python library of vectorized online rating systems (Elo, Glicko, TrueS
 - `uv run pytest tests/ -q` — run tests
 - `uv run pre-commit run --all-files` — lint (ruff), format, and verify uv.lock is in sync
 - `uv build` — build sdist/wheel (uv_build backend, flat layout via `module-root = ""`)
+- `uv run python benchmarks/ab.py` — speed-compare the working tree against main (see `benchmarks/README.md`); run before/after performance-motivated changes
 - Docs are built ONLY by CI (`.github/workflows/docs.yml`) with pdoc into `_site/` (gitignored). `docs/` contains only hand-made pdoc templates and assets (theme.css, syntax-highlighting.css, logo, favicon). Never commit generated HTML.
 
 ## Architecture

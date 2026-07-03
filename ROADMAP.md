@@ -16,6 +16,8 @@ Working list of improvements, roughly ordered within each horizon. (Started July
 
 - [ ] **Two-team competitions** (promised in the README; >2 teams explicitly out of scope).
 - [ ] **Benchmark suite** (`benchmarks/`): timing + accuracy comparisons across riix models and vs other packages (openskill.py, trueskill, etc.). Speed is the package's core pitch — measure and publish it.
+  - [x] Internal speed benchmarks with branch A/B comparison (`benchmarks/bench.py`, `ab.py`, `compare.py` — July 2026)
+  - [ ] Cross-package comparisons and accuracy benchmarks
 - [ ] **Better hyperparameter search**: random search / Optuna (optional dep) alongside `grid_search`; progress reporting for long sweeps.
 - [ ] **Type hints + `py.typed`** for the public API.
 - [ ] **Test/lint CI workflow** (deliberately deferred for now) with a Python-version matrix matching `requires-python`.
