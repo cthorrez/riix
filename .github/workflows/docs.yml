@@ -30,7 +30,7 @@ jobs:
       # the logo and favicon are referenced by URL from the deployed site itself
       - run: cp docs/riix_logo.png docs/favicon.ico _site/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site/
 
