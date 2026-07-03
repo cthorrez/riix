@@ -1,10 +1,12 @@
 name: build docs
 
-# build the documentation whenever there are new commits on main
+# build the documentation whenever there are new commits on main,
+# or manually from the Actions tab via the "Run workflow" button
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # security: restrict permissions for CI jobs.
 permissions:
