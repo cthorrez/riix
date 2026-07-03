@@ -31,9 +31,7 @@ def discover_model_classes():
         try:
             module = importlib.import_module(f'riix.models.{mod_info.name}')
         except ImportError as e:
-            classes.append(
-                pytest.param(None, id=mod_info.name, marks=pytest.mark.skip(reason=f'import failed: {e}'))
-            )
+            classes.append(pytest.param(None, id=mod_info.name, marks=pytest.mark.skip(reason=f'import failed: {e}')))
             continue
         for name, obj in inspect.getmembers(module, inspect.isclass):
             if issubclass(obj, OnlineRatingSystem) and obj.__module__ == module.__name__ and name not in EXCLUDED:
