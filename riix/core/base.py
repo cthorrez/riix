@@ -125,7 +125,7 @@ class OnlineRatingSystem(RatingSystem):
         elif return_pre_match_probs:
             return pre_match_probs
         elif return_pre_match_ratings:
-            return_pre_match_ratings
+            return pre_match_ratings
 
     def fit_dataset(
         self,
@@ -166,4 +166,4 @@ class OnlineRatingSystem(RatingSystem):
         elif return_pre_match_probs:
             return pre_match_probs
         elif return_pre_match_ratings:
-            return_pre_match_ratings
+            return pre_match_ratings
