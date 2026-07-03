@@ -16,6 +16,7 @@ class Glicko(OnlineRatingSystem):
     """
 
     rating_dim = 2
+    leaderboard_header = 'rating - (3*dev)'
 
     def __init__(
         self,
@@ -40,7 +41,7 @@ class Glicko(OnlineRatingSystem):
             update_method (str, optional): Method used for updating ratings ('online' or another specified method). Defaults to 'online'.
             do_weird_prob (bool, optional): If set to True, applies an alternative probability calculation. Defaults to False.
         """
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.initial_rating_dev = initial_rating_dev
         self.c2 = c**2.0
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
@@ -48,13 +49,6 @@ class Glicko(OnlineRatingSystem):
         self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
         self.prev_time_step = -1
         self.do_weird_prob = do_weird_prob
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     @staticmethod
     def g_vector(rating_dev):
@@ -158,11 +152,5 @@ class Glicko(OnlineRatingSystem):
             self.rating_devs[comp_1] = 1.0 / math.sqrt(r1_denom)
             self.rating_devs[comp_2] = 1.0 / math.sqrt(r2_denom)
 
-    def print_leaderboard(self, num_places):
-        sort_array = self.ratings - (3.0 * self.rating_devs)
-        sorted_idxs = np.argsort(-sort_array)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating - (3*dev)"}\t')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.ratings - (3.0 * self.rating_devs)

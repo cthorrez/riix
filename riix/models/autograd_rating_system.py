@@ -32,7 +32,7 @@ class AutogradRatingSystem(OnlineRatingSystem):
         dtype=jnp.float32,
     ):
         """Initialize the rating system"""
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
 
         self.ratings = jnp.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cdf = cdf
@@ -74,13 +74,6 @@ class AutogradRatingSystem(OnlineRatingSystem):
         self.predict_fn = _predict_fn
         self.batched_update_fn = _batched_update_fn
         self.online_update_fn = _online_update_fn
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def _pad(self, matchups: np.ndarray, outcomes: np.ndarray = None):
         """
@@ -129,10 +122,5 @@ class AutogradRatingSystem(OnlineRatingSystem):
         matchups, outcomes = self._pad(matchups, outcomes)
         self.ratings = self.online_update_fn(self.ratings, matchups, outcomes)
 
-    def print_leaderboard(self, num_places):
-        sorted_idxs = np.argsort(-self.ratings)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return np.asarray(self.ratings)

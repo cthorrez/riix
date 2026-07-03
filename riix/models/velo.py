@@ -15,6 +15,7 @@ class vElo(OnlineRatingSystem):
     """
 
     rating_dim = 2
+    leaderboard_header = 'mu - (3 * sd)'
 
     def __init__(
         self,
@@ -32,7 +33,7 @@ class vElo(OnlineRatingSystem):
         update_method: str = 'online',
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.mus = np.zeros(self.num_competitors, dtype=dtype) + initial_mu
         self.vs = np.zeros(self.num_competitors, dtype=dtype) + np.square(initial_sigma)
         self.sigma_reduction_factor = sigma_reduction_factor
@@ -40,12 +41,6 @@ class vElo(OnlineRatingSystem):
         self.b = b
         self.b2 = b**2.0
         self.cache = {'probs': None}
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
         """generate predictions"""
@@ -96,11 +91,5 @@ class vElo(OnlineRatingSystem):
             self.vs[comp_1] = v_1_p
             self.vs[comp_2] = v_2_p
 
-    def print_leaderboard(self, num_places):
-        sort_array = self.mus - (3.0 * np.sqrt(self.vs))
-        sorted_idxs = np.argsort(-sort_array)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"mu - (3 * sd)"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.mus - (3.0 * np.sqrt(self.vs))

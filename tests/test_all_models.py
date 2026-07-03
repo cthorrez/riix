@@ -56,7 +56,7 @@ def dataset():
 def test_fit_and_predict(model_class, dataset):
     kwargs = EXTRA_KWARGS.get(model_class.__name__, {})
     model = model_class(competitors=dataset.competitors, **kwargs)
-    probs = model.fit_dataset(dataset, return_pre_match_probs=True)
+    probs = model.fit_dataset(dataset, return_pre_match_probs=True).probs
     assert probs.shape == (len(dataset),)
     assert np.all(np.isfinite(probs))
     assert np.all((probs >= 0.0) & (probs <= 1.0))

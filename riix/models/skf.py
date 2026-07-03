@@ -37,6 +37,7 @@ class VSKF(OnlineRatingSystem):
     """vector covariance simplified kalman filter"""
 
     rating_dim = 2
+    leaderboard_header = 'mu - (3 * sd)'
 
     def __init__(
         self,
@@ -50,7 +51,7 @@ class VSKF(OnlineRatingSystem):
         model='bt',  # legal values are bt, tm, and dd
         update_method='online',
     ):
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.mus = np.zeros(self.num_competitors, dtype=dtype) + mu_0
         self.vs = np.zeros(self.num_competitors, dtype=dtype) + v_0
         self.has_played = np.zeros(self.num_competitors, dtype=np.bool_)
@@ -60,13 +61,6 @@ class VSKF(OnlineRatingSystem):
         self.s2 = s**2.0
         self.epsilon = epsilon
         self.prev_time_step = 0
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
         if model == 'bt':
             self.predict_func = bradley_terry_prob
@@ -161,11 +155,5 @@ class VSKF(OnlineRatingSystem):
             self.vs[comp_1] *= 1.0 - v_1 * v_update
             self.vs[comp_2] *= 1.0 - v_2 * v_update
 
-    def print_leaderboard(self, num_places):
-        sort_array = self.mus - (3.0 * np.sqrt(self.vs))
-        sorted_idxs = np.argsort(-sort_array)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"mu - (3 * sd)"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.mus - (3.0 * np.sqrt(self.vs))

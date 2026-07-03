@@ -22,17 +22,11 @@ class onlineMarkov(Elo):
         update_method: str = 'online',
         dtype=np.float64,
     ):
-        OnlineRatingSystem.__init__(self, competitors)
+        OnlineRatingSystem.__init__(self, competitors, update_method)
         self.c = c
         self.weight_with_prob = weight_with_prob
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
@@ -48,7 +42,7 @@ class onlineMarkov(Elo):
 
     def batched_update(self, matchups, outcomes, use_cache, **kwargs):
         """apply one update based on all of the results of the rating period"""
-        pass
+        raise NotImplementedError('onlineMarkov does not implement a batched update, use update_method=online')
 
     def online_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""

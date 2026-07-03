@@ -26,7 +26,7 @@ class GenElo(OnlineRatingSystem):
         dtype=np.float64,
     ):
         """Initialize the rating system"""
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_mu
         self.b = b
         self.b_over_2 = b / 2.0
@@ -38,13 +38,6 @@ class GenElo(OnlineRatingSystem):
             self.alpha = math.sqrt(1.0 + ((math.pi * sigma_delta_squared * self.b_squared) / 8.0))
         else:
             self.alpha = 1.0
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -84,5 +77,5 @@ class GenElo(OnlineRatingSystem):
             self.mus[comp_1] += delta
             self.mus[comp_2] -= delta
 
-    def print_leaderboard(self, num_places):
-        raise NotImplementedError
+    def leaderboard_ratings(self):
+        return self.mus

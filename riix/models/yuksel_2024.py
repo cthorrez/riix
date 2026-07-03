@@ -30,7 +30,7 @@ class Yuksel2024(OnlineRatingSystem):
         dtype=np.float64,
     ):
         """Initialize the rating system"""
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.delta_r_max = delta_r_max
         self.alpha = alpha
         self.scaling_factor = scaling_factor
@@ -39,13 +39,6 @@ class Yuksel2024(OnlineRatingSystem):
         self.W = np.zeros(shape=len(self.competitors), dtype=dtype) + 1e-2
         self.V = np.zeros(shape=len(self.competitors), dtype=dtype)
         self.D = np.zeros(shape=len(self.competitors), dtype=dtype)
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -124,10 +117,5 @@ class Yuksel2024(OnlineRatingSystem):
             self.R[comp_2] += delta_R_2 / self.W[comp_2]
             self.V[comp_2] = (omega_2 * self.V[comp_2]) + delta_R_2 * (new_r_2 - self.R[comp_2])
 
-    def print_leaderboard(self, num_places):
-        sorted_idxs = np.argsort(-self.ratings)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.ratings

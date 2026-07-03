@@ -4,13 +4,13 @@ Working list of improvements, roughly ordered within each horizon. (Started July
 
 ## Short term
 
-- [ ] **Finish the static/non-dynamic rating system inheritance refactor** (in flight — `RatingSystem` vs `OnlineRatingSystem` split in `core/base.py`).
-- [ ] **Deduplicate model boilerplate into the base class** as part of that refactor:
-  - `print_leaderboard` is copy-pasted in ~17 models, differing only in the sort key → generic base implementation over an overridable score array.
-  - The `update_method` dispatch block (`'online'`/`'batched'` → bind `self.update`) is duplicated in ~20 `__init__`s → hoist into `OnlineRatingSystem.__init__`.
-- [ ] **Normalize `fit_batch`/`fit_dataset` return values.** The None/array/tuple polymorphism is error-prone (already caused one shipped bug). Return a consistent shape or small result object.
-- [ ] **`models/__init__.py` cleanup**: docstring lists a stale roster of systems; consider lazy re-exports (`from riix.models import Elo`) via module `__getattr__` to avoid importing every model (and optional deps) eagerly.
-- [ ] **More known-value tests**: Elo and Weng-Lin against reference implementations, mirroring the existing Glicko/Glicko2/TrueSkill tests.
+- [x] **Finish the static/non-dynamic rating system inheritance refactor** (`RatingSystem` → `OnlineRatingSystem`/`StaticRatingSystem` split in `core/base.py`; static systems fit once on the whole dataset and share the `fit_dataset` contract so `riix.eval` works with both — July 2026)
+- [x] **Deduplicate model boilerplate into the base class** as part of that refactor:
+  - `print_leaderboard` is now a generic base implementation over an overridable `leaderboard_ratings()` array + `leaderboard_header` (July 2026)
+  - The `update_method` dispatch block is hoisted into `OnlineRatingSystem.__init__` (July 2026)
+- [x] **Normalize `fit_batch`/`fit_dataset` return values.** Both always return a `FitResult` NamedTuple with `probs`/`ratings` fields that are None unless requested (July 2026)
+- [x] **`models/__init__.py` cleanup**: lazy re-exports via module `__getattr__`, accurate roster in the docstring (July 2026)
+- [x] **More known-value tests**: Elo vs hand-computed classic arithmetic, Weng-Lin BT vs openskill.py 6.2.0; plus batched==online regression tests for the fixed OnlineDiscDecomp/EloMentum batched updates (July 2026)
 
 ## Medium term
 

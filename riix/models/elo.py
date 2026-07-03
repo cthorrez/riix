@@ -3,7 +3,7 @@
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
+from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 class Elo(OnlineRatingSystem):
@@ -35,17 +35,11 @@ class Elo(OnlineRatingSystem):
 
         Initializes an Elo rating system with customizable settings for initial ratings, K-factor, and update method.
         """
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.k = k
         self.alpha = alpha
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cache = {'probs': None}
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -107,18 +101,16 @@ class Elo(OnlineRatingSystem):
             outcomes: Results of each matchup.
             **kwargs: Additional parameters (not used).
         """
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            diff = self.ratings[comp_1] - self.ratings[comp_2]
-            prob = sigmoid_scalar(self.alpha * diff)
-            update = self.k * (outcomes[idx] - prob)
-            self.ratings[comp_1] += update
-            self.ratings[comp_2] -= update
+        # work on python floats: scalar math on numpy elements pays ufunc dispatch per op
+        ratings = self.ratings.tolist()
+        k = self.k
+        alpha = self.alpha
+        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
+            prob = 1.0 / (1.0 + math.exp(-alpha * (ratings[comp_1] - ratings[comp_2])))
+            update = k * (outcome - prob)
+            ratings[comp_1] += update
+            ratings[comp_2] -= update
+        self.ratings[:] = ratings
 
-    def print_leaderboard(self, num_places):
-        sorted_idxs = np.argsort(-self.ratings)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.ratings

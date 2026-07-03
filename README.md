@@ -47,7 +47,7 @@ print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 
 model = Elo(competitors=dataset.competitors)
 model.fit_dataset(train_dataset)
-test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
+test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True).probs
 test_metrics = binary_metrics_suite(probs=test_probs, outcomes=test_dataset.outcomes)
 print(test_metrics)
 

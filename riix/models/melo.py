@@ -44,7 +44,7 @@ class Melo(Elo):
         update_method: str = 'online',
         dtype=np.float64,
     ):
-        OnlineRatingSystem.__init__(self, competitors)
+        OnlineRatingSystem.__init__(self, competitors, update_method)
         self.eta_r = eta_r
         self.eta_c = eta_c
         self.alpha = alpha
@@ -59,11 +59,6 @@ class Melo(Elo):
         # Set every other off-diagonal element to 1 or -1
         self.omega[np.arange(0, two_k - 1, 2), np.arange(1, two_k, 2)] = 1  # Upper off diagonal
         self.omega[np.arange(1, two_k, 2), np.arange(0, two_k - 1, 2)] = -1  # Lower off diagonal
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        if update_method == 'online':
-            self.update = self.online_update
 
         self.cache = {'probs': None, 'c_1_times_omega': None}
 

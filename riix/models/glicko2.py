@@ -8,7 +8,7 @@ example: http://www.glicko.net/glicko/glicko2.pdf
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
+from riix.utils.math_utils import sigmoid, scatter_sum
 from riix.utils.constants import THREE_OVER_PI_SQUARED
 
 
@@ -18,6 +18,7 @@ class Glicko2(OnlineRatingSystem):
     """
 
     rating_dim = 2
+    leaderboard_header = 'rating - (3*dev)'
 
     def __init__(
         self,
@@ -32,7 +33,7 @@ class Glicko2(OnlineRatingSystem):
         update_method='online',
     ):
         """Initializes the Glicko rating system with the given parameters."""
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.mus = np.zeros(shape=self.num_competitors, dtype=dtype) + ((initial_rating - 1500.0) / 173.7178)
         self.initial_phi = initial_rd / 173.7178
 
@@ -43,13 +44,6 @@ class Glicko2(OnlineRatingSystem):
         self.tau = tau
         self.tau2 = tau**2.0
         self.epsilon = epsilon
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     @staticmethod
     def g_scalar(phi):
@@ -136,30 +130,30 @@ class Glicko2(OnlineRatingSystem):
         self.sigmas[active_in_period] = sigma_primes
         self.prev_time_step = time_step
 
-    def f(self, x, delta2, phi2, v, a):
-        ex = math.exp(x)
-        phi2_v_ex = phi2 + v + ex
-        num_1 = ex * (delta2 - phi2_v_ex)
-        denom_1 = 2 * ((phi2_v_ex) ** 2.0)
-        term_2 = (x - a) / self.tau2
-        return (num_1 / denom_1) - term_2
-
     def get_sigma_prime(self, phi, delta, v, sigma):
-        delta2 = delta**2.0
-        phi2 = phi**2.0
-        A = a = math.log(sigma**2.0)
+        tau = self.tau
+        tau2 = self.tau2
+        delta2 = delta * delta
+        phi2 = phi * phi
+        A = a = math.log(sigma * sigma)
+
+        def f(x):
+            ex = math.exp(x)
+            phi2_v_ex = phi2 + v + ex
+            return (ex * (delta2 - phi2_v_ex)) / (2.0 * phi2_v_ex * phi2_v_ex) - ((x - a) / tau2)
+
         if delta2 > (phi2 + v):
             B = math.log(delta2 - phi2 - v)
         else:
-            B = a - self.tau
-            while self.f(B, delta2=delta2, phi2=phi2, v=v, a=a) < 0:
-                B -= self.tau
+            B = a - tau
+            while f(B) < 0:
+                B -= tau
 
-        f_A = self.f(A, delta2, phi2, v, a)
-        f_B = self.f(B, delta2, phi2, v, a)
+        f_A = f(A)
+        f_B = f(B)
         while math.fabs(A - B) > self.epsilon:
             C = A + ((A - B) * f_A) / (f_B - f_A)
-            f_C = self.f(C, delta2, phi2, v, a)
+            f_C = f(C)
             if (f_C * f_B) <= 0:
                 A = B
                 f_A = f_B
@@ -174,42 +168,41 @@ class Glicko2(OnlineRatingSystem):
         """treat the matchups in the rating period as if they were sequential"""
         # increase the phi's once at the beginning of the rating period with the prior sigma
         self.increase_rating_dev(time_step, matchups)
+        # work on python floats: scalar math on numpy elements pays ufunc dispatch per op
+        mus = self.mus.tolist()
+        phis = self.phis.tolist()
+        sigmas = self.sigmas.tolist()
+        get_sigma_prime = self.get_sigma_prime
         for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
-            mu_1 = self.mus[comp_1]
-            mu_2 = self.mus[comp_2]
-            mu_diff = mu_1 - mu_2
-            phi_1 = self.phis[comp_1]
-            phi_2 = self.phis[comp_2]
-            g_1 = self.g_scalar(phi_1)
-            g_2 = self.g_scalar(phi_2)
-            p_1 = sigmoid_scalar(g_2 * mu_diff)
-            p_2 = sigmoid_scalar(-g_1 * mu_diff)
-            v_1 = 1.0 / ((g_2**2.0) * p_1 * (1.0 - p_1))
-            v_2 = 1.0 / ((g_1**2.0) * p_2 * (1.0 - p_2))
+            mu_diff = mus[comp_1] - mus[comp_2]
+            phi_1 = phis[comp_1]
+            phi_2 = phis[comp_2]
+            g_1 = 1.0 / math.sqrt(1.0 + (THREE_OVER_PI_SQUARED * phi_1 * phi_1))
+            g_2 = 1.0 / math.sqrt(1.0 + (THREE_OVER_PI_SQUARED * phi_2 * phi_2))
+            p_1 = 1.0 / (1.0 + math.exp(-g_2 * mu_diff))
+            p_2 = 1.0 / (1.0 + math.exp(g_1 * mu_diff))
+            v_1 = 1.0 / ((g_2 * g_2) * p_1 * (1.0 - p_1))
+            v_2 = 1.0 / ((g_1 * g_1) * p_2 * (1.0 - p_2))
 
             delta_1 = v_1 * g_2 * (outcome - p_1)
             delta_2 = v_2 * g_1 * (1.0 - outcome - p_2)
 
-            sigma_star_1 = self.get_sigma_prime(phi_1, delta_1, v_1, self.sigmas[comp_1])
-            sigma_star_2 = self.get_sigma_prime(phi_2, delta_2, v_2, self.sigmas[comp_2])
-
             # update the sigmas for each match
-            self.sigmas[comp_1] = sigma_star_1
-            self.sigmas[comp_2] = sigma_star_2
+            sigmas[comp_1] = get_sigma_prime(phi_1, delta_1, v_1, sigmas[comp_1])
+            sigmas[comp_2] = get_sigma_prime(phi_2, delta_2, v_2, sigmas[comp_2])
 
             # update the phis in each match
             # we do not need to update the phis for the passage of time during each match, that's done before the loop
-            self.phis[comp_1] = 1.0 / math.sqrt((1.0 / (phi_1**2.0)) + (1.0 / v_1))
-            self.phis[comp_2] = 1.0 / math.sqrt((1.0 / (phi_2**2.0)) + (1.0 / v_2))
+            phi_prime_1 = 1.0 / math.sqrt((1.0 / (phi_1 * phi_1)) + (1.0 / v_1))
+            phi_prime_2 = 1.0 / math.sqrt((1.0 / (phi_2 * phi_2)) + (1.0 / v_2))
+            phis[comp_1] = phi_prime_1
+            phis[comp_2] = phi_prime_2
 
-            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_2 * (outcome - p_1)
-            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_1 * (1.0 - outcome - p_2)
+            mus[comp_1] += (phi_prime_1 * phi_prime_1) * g_2 * (outcome - p_1)
+            mus[comp_2] += (phi_prime_2 * phi_prime_2) * g_1 * (1.0 - outcome - p_2)
+        self.mus[:] = mus
+        self.phis[:] = phis
+        self.sigmas[:] = sigmas
 
-    def print_leaderboard(self, num_places):
-        sort_array = self.mus - (3.0 * np.square(self.phis))
-        sorted_idxs = np.argsort(-sort_array)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating - (3*dev)"}\t')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{sort_array[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.mus - (3.0 * np.square(self.phis))

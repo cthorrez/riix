@@ -1,25 +1,67 @@
 """
-Models Module
-=============
+Implementations of online rating systems for paired comparison data.
+One rating system per module, re-exported here lazily so that
+`from riix.models import Elo` works without importing every model module
+(or optional dependencies like jax, which only AutogradRatingSystem needs).
 
-This module contains implementations of various rating systems used to evaluate and compare the performance of competitors in games or sports. Each system provides a unique approach to calculating ratings, taking into account factors such as game outcomes, player volatility, and more.
+Included rating systems:
 
-Included Rating Systems:
-- Elo: A simple and widely used rating system that adjusts player ratings based on match outcomes.
-- Elomentum: Enhances the Elo system by incorporating momentum into rating adjustments.
-- Glicko: An advanced system extending Elo by introducing rating deviation and volatility.
-- online Markov: Uses Markov assumptions for online rating updates.
-- Melo: A variation of the Elo rating system with multidimensional representations.
-- Online Disc Decomposition: A machine learning approach for rating updates.
-- SKF: Implements simplified Kalman filters for rating estimation.
-- Temporal Massey: A temporal adaptation of the Massey rating system.
-- TrueSkill: A Bayesian rating system developed by Microsoft.
-- Velo: A variant of the Elo system with variance.
-- Weng-Lin Bradley-Terry: A Bayesian online rating system using the Bradley-Terry (logistic) model.
-- Weng-Lin Thurstone-Mosteller: A Bayesian online rating system using the Thurstone-Mosteller (gaussian) model.
-
-Each rating system is implemented as a class with methods for initializing the system, updating player ratings based on game outcomes, and calculating expected scores between players. These classes are designed for use in online rating systems where ratings are updated continuously as games are played.
-
-This module also provides utility functions and constants used across different rating systems, such as mathematical functions for calculating expected scores and scaling factors.
-
+- `Elo`: the classic Elo rating system.
+- `EloDavidson`: Elo with Davidson's method of handling draws.
+- `EloMentum`: Elo with momentum-based updates (heavy ball, Nesterov, or Adam).
+- `GenElo`: Martin Ingram's Bayesian generalization of Elo.
+- `ConstantVarianceGlicko`: Glicko with equal, unchanging variance for all competitors.
+- `Glicko`: Mark Glickman's Glicko rating system.
+- `Glicko2`: Mark Glickman's Glicko 2 rating system with volatility.
+- `TrueSkill`: Microsoft's Bayesian TrueSkill rating system.
+- `WengLin`: the Weng-Lin Bayesian online rating system (Bradley-Terry or Thurstone-Mosteller model).
+- `WengLinThurstoneMosteller`: DEPRECATED, use WengLin with model='tm'.
+- `VSKF`: vector covariance simplified Kalman filter.
+- `vElo`: variance incorporated Elo.
+- `Melo`: multidimensional Elo for partially cyclic (rock-paper-scissors-like) games.
+- `OnlineDiscDecomp`: online disc decomposition (Bertrand et al. 2023).
+- `OnlineRaoKupper`: online gradient ascent on the Rao-Kupper draw model.
+- `onlineMarkov`: online Markov method.
+- `TemporalMassey`: temporalized Massey method.
+- `Yuksel2024`: Cem Yuksel's 2024 matchmaking rating system.
+- `AutogradRatingSystem`: gradient updates on arbitrary differentiable likelihoods (requires the jax extra).
+- `BaselineRatingSystem`: win rate / appearance / random baselines.
 """
+
+import importlib
+
+_MODEL_LOCATIONS = {
+    'AutogradRatingSystem': 'autograd_rating_system',
+    'BaselineRatingSystem': 'baselines',
+    'ConstantVarianceGlicko': 'constant_variance_glicko',
+    'Elo': 'elo',
+    'EloDavidson': 'elo_davidson',
+    'EloMentum': 'elomentum',
+    'GenElo': 'gen_elo',
+    'Glicko': 'glicko',
+    'Glicko2': 'glicko2',
+    'Melo': 'melo',
+    'OnlineDiscDecomp': 'online_disc_decomp',
+    'OnlineRaoKupper': 'online_rao_kupper',
+    'TemporalMassey': 'temporal_massey',
+    'TrueSkill': 'trueskill',
+    'VSKF': 'skf',
+    'WengLin': 'weng_lin',
+    'WengLinThurstoneMosteller': 'weng_lin_thurstone_mosteller',
+    'Yuksel2024': 'yuksel_2024',
+    'onlineMarkov': 'iterative_markov',
+    'vElo': 'velo',
+}
+
+__all__ = sorted(_MODEL_LOCATIONS)
+
+
+def __getattr__(name):
+    if name in _MODEL_LOCATIONS:
+        module = importlib.import_module(f'.{_MODEL_LOCATIONS[name]}', __name__)
+        return getattr(module, name)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
+
+def __dir__():
+    return sorted(list(globals()) + __all__)

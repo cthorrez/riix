@@ -6,7 +6,7 @@ equations 8 and 9
 
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 class OnlineDiscDecomp(OnlineRatingSystem):
@@ -23,19 +23,13 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         update_method: str = 'online',
         dtype=np.float64,
     ):
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.initial_u = initial_u
         self.initial_v = initial_v
         self.eta = eta
         self.us = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_u
         self.vs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_v
         self.cache = {'probs': None}
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         us = self.us[matchups]
@@ -53,17 +47,26 @@ class OnlineDiscDecomp(OnlineRatingSystem):
             self.cache['probs'] = probs
         return probs
 
-    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
+        """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
+        us = self.us[matchups]
+        vs = self.vs[matchups]
+        u_diffs = us[:, 0] - us[:, 1]
+        v_prods = vs[:, 0] * vs[:, 1]
         if use_cache:
             probs = self.cache['probs']
         else:
-            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
-        per_match_diff = (outcomes - probs)[:, None]
-        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
-        self.ratings[active_in_period] += self.k * per_competitor_diff
+            probs = sigmoid(v_prods * u_diffs)
+        scaled_deltas = self.eta * (outcomes - probs)
+
+        # paper equation 8: u_i += eta * delta * v_i * v_j, u_j gets the negated update
+        u_updates = (scaled_deltas * v_prods)[:, None] * np.array([1.0, -1.0])
+        # paper equation 9: v_i += eta * delta * v_j * (u_i - u_j), same sign for both sides
+        v_updates = (scaled_deltas * u_diffs)[:, None] * vs[:, [1, 0]]
+
+        self.us[active_in_period] += scatter_sum(u_updates, matchups, self.num_competitors)[active_in_period]
+        self.vs[active_in_period] += scatter_sum(v_updates, matchups, self.num_competitors)[active_in_period]
 
     def online_update(self, matchups, outcomes, **kwargs):
         for idx in range(matchups.shape[0]):
@@ -80,13 +83,8 @@ class OnlineDiscDecomp(OnlineRatingSystem):
 
             self.us[comp_1] += u_update
             self.us[comp_2] -= u_update
-            self.us[comp_1] += v_update * v_2
-            self.us[comp_2] -= v_update * v_1
+            self.vs[comp_1] += v_update * v_2
+            self.vs[comp_2] += v_update * v_1
 
-    def print_leaderboard(self, num_places):
-        sorted_idxs = np.argsort(-self.us)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.us[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.us

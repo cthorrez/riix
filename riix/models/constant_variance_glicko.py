@@ -25,7 +25,7 @@ class ConstantVarianceGlicko(OnlineRatingSystem):
         dtype=np.float64,
     ):
         """Initialize the rating system"""
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.rd = rd
         self.b = b
@@ -36,13 +36,6 @@ class ConstantVarianceGlicko(OnlineRatingSystem):
         self.g_rd = 1.0 / math.sqrt(1.0 + (3.0 * (self.b2) * (rd**2.0)) / (math.pi**2.0))
         self.b_g_rd = b * self.g_rd
         self.b2_g_rd2 = self.b_g_rd**2.0
-
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -85,5 +78,5 @@ class ConstantVarianceGlicko(OnlineRatingSystem):
             self.ratings[matchup[0]] += delta
             self.ratings[matchup[1]] -= delta
 
-    def print_leaderboard(self, num_places):
-        raise NotImplementedError
+    def leaderboard_ratings(self):
+        return self.ratings

@@ -5,9 +5,8 @@ Invented by Clayton Thorrez (me)
 
 import math
 import numpy as np
-from riix.core.base import OnlineRatingSystem
 from riix.models.elo import Elo
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 class EloMentum(Elo):
@@ -28,21 +27,17 @@ class EloMentum(Elo):
         epsilon: float = 1e-8,
         dtype=np.float64,
     ):
-        OnlineRatingSystem.__init__(self, competitors)
-        self.k = k
-        self.alpha = alpha
+        super().__init__(
+            competitors,
+            initial_rating=initial_rating,
+            k=k,
+            alpha=alpha,
+            update_method=update_method,
+            dtype=dtype,
+        )
         self.momentum = momentum
         self.epsilon = epsilon
-        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-
         self.v = np.zeros(shape=self.num_competitors, dtype=dtype)
-        self.cache = {'probs': None}
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
         if momentum_type == 'heavy_ball':
             self.momentum_fn = self.get_momentum_update
@@ -56,22 +51,8 @@ class EloMentum(Elo):
         else:
             raise ValueError(f'Invalid momentum_type {momentum_type}')
 
-    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        return self.ratings[matchups]
-
-    def predict(self, time_step: int, matchups: np.ndarray, set_cache: bool = False):
-        """generate predictions"""
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        probs = sigmoid(self.alpha * (ratings_1 - ratings_2))
-        if set_cache:
-            self.cache['probs'] = probs
-        return probs
-
-    def update(self, matchups: np.ndarray, outcomes: np.ndarray, use_cache: bool = False, **kwargs):
-        self.update(matchups, outcomes, use_cache=use_cache)
-
     def get_momentum_update(self, idx, g):
+        """idx and g may be a scalar (online) or arrays over competitors (batched)"""
         v = self.v[idx]
         v_new = (self.momentum * v) + g
         self.v[idx] = v_new
@@ -92,31 +73,29 @@ class EloMentum(Elo):
     def get_adam_update(self, idx, g):
         mu = self.mu[idx]
         v = self.v[idx]
-        t = self.t[idx]
-        t += 1.0
+        t = self.t[idx] + 1
         mu_new = (self.beta1 * mu) + ((1.0 - self.beta1) * g)
         v_new = (self.beta2 * v) + ((1.0 - self.beta2) * (g * g))
         mu_hat = mu_new / (1.0 - (self.beta1**t))
         v_hat = v_new / (1.0 - (self.beta2**t))
-        update = self.k * mu_hat / (math.sqrt(v_hat) + self.epsilon)
+        update = self.k * mu_hat / (np.sqrt(v_hat) + self.epsilon)
         self.mu[idx] = mu_new
         self.v[idx] = v_new
         self.t[idx] = t
         return update
 
-    def batched_update(self, matchups, outcomes, use_cache):
-        """apply one update based on all of the results of the rating period"""
-        pass
-        # active_in_period = np.unique(matchups)
-        # masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
-        # if use_cache:
-        #     probs = self.cache['probs']
-        # else:
-        #     probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
-        # per_match_diff = (outcomes - probs)[:, None]
-        # per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        # per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
-        # self.ratings[active_in_period] += self.k * per_competitor_diff
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
+        """apply one momentum update per competitor based on all of the results of the rating period"""
+        active_in_period = np.unique(matchups)
+        if use_cache:
+            probs = self.cache['probs']
+        else:
+            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
+        per_match_diff = (outcomes - probs)[:, None]
+        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
+        per_competitor_grad = scatter_sum(per_match_diff, matchups, self.num_competitors)[active_in_period]
+        updates = self.momentum_fn(active_in_period, per_competitor_grad)
+        self.ratings[active_in_period] += updates
 
     def online_update(self, matchups, outcomes, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""

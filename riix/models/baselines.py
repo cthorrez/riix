@@ -51,7 +51,7 @@ class BaselineRatingSystem(OnlineRatingSystem):
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         raise NotImplementedError
 
-    def update(self, matchups, outcomes, use_cache, **kwargs):
+    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
         """
         Apply a single update based on all results of the rating period,
 
@@ -76,5 +76,5 @@ class BaselineRatingSystem(OnlineRatingSystem):
         # Update wins
         self.wins[active_in_period] += active_win_counts
 
-    def print_leaderboard(self, num_places):
-        raise NotImplementedError
+    # count updates are order-independent so both update methods share one implementation
+    online_update = batched_update

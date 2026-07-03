@@ -33,18 +33,12 @@ class OnlineRaoKupper(OnlineRatingSystem):
             competitors (list): A list of competitors to be rated within the system.
             initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
         """
-        super().__init__(competitors)
+        super().__init__(competitors, update_method)
         self.theta = theta
         self.log_theta = math.log(theta)
         self.step_size = step_size
         self.temperature = temperature
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-        if update_method == 'batched':
-            self.update = self.batched_update
-        elif update_method == 'online':
-            self.update = self.online_update
-        else:
-            raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
@@ -108,10 +102,5 @@ class OnlineRaoKupper(OnlineRatingSystem):
             self.ratings[comp_1] += self.step_size * g_1
             self.ratings[comp_2] += self.step_size * g_2
 
-    def print_leaderboard(self, num_places):
-        sorted_idxs = np.argsort(-self.ratings)[:num_places]
-        max_len = min(np.max([len(comp) for comp in self.competitors] + [10]), 25)
-        print(f'{"competitor": <{max_len}}\t{"rating"}')
-        for p_idx in range(num_places):
-            comp_idx = sorted_idxs[p_idx]
-            print(f'{self.competitors[comp_idx]: <{max_len}}\t{self.ratings[comp_idx]:.6f}')
+    def leaderboard_ratings(self):
+        return self.ratings
