@@ -24,10 +24,10 @@ There are lots of other great python packages for that too! (just not riix)
 ## Example
 ```python
 from riix.models.elo import Elo
-from riix.utils import TimedPairDataset, split_pair_dataset, generate_matchup_data
+from riix.utils import TimedPairDataset, split_pair_dataset, generate_pair_data
 from riix.metrics import binary_metrics_suite
 
-df = generate_matchup_data() # replace with your **polars** dataframe
+df = generate_pair_data() # replace with your **polars** dataframe
 dataset = TimedPairDataset(
     df,
     competitor_cols=['competitor_1', 'competitor_2'],
@@ -38,10 +38,11 @@ dataset = TimedPairDataset(
 train_dataset, test_dataset = split_pair_dataset(dataset, test_fraction=0.2)
 print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 
->>> loaded dataset with:
+>>> Loaded dataset with:
 >>> 10000 matchups
 >>> 100 unique competitors
 >>> 10 rating periods of length 1D
+>>> Split into train_dataset of length 8000 and test_dataset of length 2000
 >>> len(train_dataset)=8000, len(test_dataset)=2000
 
 model = Elo(competitors=dataset.competitors)
@@ -50,7 +51,7 @@ test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True)
 test_metrics = binary_metrics_suite(probs=test_probs, outcomes=test_dataset.outcomes)
 print(test_metrics)
 
->>> {'accuracy': 0.72975, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
+>>> {'accuracy': 0.72975, 'accuracy_without_draws': 0.730095142714071, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
 
 model.print_leaderboard(num_places=5)
 
