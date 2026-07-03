@@ -48,11 +48,13 @@ class PairDataset:
                 competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index1')),
                 left_on='comp1',
                 right_on='competitor',
+                maintain_order='left',
             )
             .join(
                 competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index2')),
                 left_on='comp2',
                 right_on='competitor',
+                maintain_order='left',
             )
             .select(['index1', 'index2'])
         )
@@ -110,6 +112,7 @@ class TimedPairDataset(PairDataset):
         self._init_time_steps(df, datetime_col, time_step_col, rating_period)
 
         if verbose:
+            self._print_stats()
             print(f'{self.unique_time_steps.max() + 1} rating periods of length {rating_period}')
 
     def _init_time_steps(
@@ -123,6 +126,10 @@ class TimedPairDataset(PairDataset):
             self.time_steps = df[time_step_col].to_numpy()
         else:
             self.time_steps = self._convert_datetime(df[datetime_col], rating_period)
+
+        if np.any(np.diff(self.time_steps) < 0):
+            col = time_step_col if time_step_col else datetime_col
+            raise ValueError(f'Data must be sorted chronologically, {col!r} is not monotonically non-decreasing')
 
         self._process_time_steps()
 
