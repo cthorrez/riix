@@ -28,7 +28,7 @@ class RatingSystem(ABC):
         Parameters:
             num_places int: The number of top places to display on the leaderboard.
         """
-        pass  # Implementation should be provided by subclasses.
+        raise NotImplementedError
 
     def predict(
         self,

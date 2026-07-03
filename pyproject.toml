@@ -16,9 +16,11 @@ dependencies = [
     "numpy",
     "scipy",
     "polars",
-    "jax",
 ]
 keywords = ["rating system", "paired comparison"]
+
+[project.optional-dependencies]
+jax = ["jax"]
 
 [project.urls]
 Docs = "https://cthorrez.github.io/riix/"
@@ -31,6 +33,7 @@ dev = [
     "ruff",
     "pdoc",
     "pre-commit",
+    "jax",
 ]
 
 [tool.uv.build-backend]

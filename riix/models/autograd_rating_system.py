@@ -5,9 +5,15 @@ A general class implementing online gradient based rating systems on differentia
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-import jax.numpy as jnp
-from jax import grad, jit
-from jax.scipy.stats import logistic
+
+try:
+    import jax.numpy as jnp
+    from jax import grad, jit
+    from jax.scipy.stats import logistic
+except ImportError as e:
+    raise ImportError(
+        'AutogradRatingSystem requires jax, which is an optional dependency. Install it with: uv add "riix[jax]"'
+    ) from e
 
 
 class AutogradRatingSystem(OnlineRatingSystem):
