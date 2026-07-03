@@ -48,7 +48,9 @@ def main():
         elif speedup <= 1.0 - args.threshold:
             marker = ' SLOWER'
         model, num_matchups, num_competitors = key
-        print(f'{model: <32} {num_matchups: >9} {num_competitors: >12} {b: >10.4f} {h: >10.4f} {speedup: >7.2f}x{marker}')
+        print(
+            f'{model: <32} {num_matchups: >9} {num_competitors: >12} {b: >10.4f} {h: >10.4f} {speedup: >7.2f}x{marker}'
+        )
 
     if log_speedups:
         geo_mean = math.exp(sum(log_speedups) / len(log_speedups))

@@ -8,7 +8,7 @@ from riix.core.base import OnlineRatingSystem
 
 try:
     import jax.numpy as jnp
-    from jax import grad, jit
+    from jax import grad, jit, lax
     from jax.scipy.stats import logistic
 except ImportError as e:
     raise ImportError(
@@ -37,13 +37,32 @@ class AutogradRatingSystem(OnlineRatingSystem):
         self.ratings = jnp.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         self.cdf = cdf
         self.scale = scale
+        self.learning_rate = learning_rate * scale
+        lr = self.learning_rate
 
-        @jit
-        def likelihood_fn(ratings, matchups, outcomes):
-            matchup_ratings = ratings[matchups]
-            rating_diffs = matchup_ratings[:, 0] - matchup_ratings[:, 1]
+        def likelihood_fn(matchup_ratings, outcomes):
+            # differentiating w.r.t. only the gathered ratings keeps the gradient
+            # O(matchups) instead of O(num_competitors)
+            rating_diffs = matchup_ratings[..., 0] - matchup_ratings[..., 1]
             probs = self.cdf(rating_diffs / self.scale)
             return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum()
+
+        grad_fn = grad(likelihood_fn)
+
+        @jit
+        def _batched_update_fn(ratings, matchups, outcomes):
+            update = grad_fn(ratings[matchups], outcomes) * lr
+            return ratings.at[matchups].add(-update)
+
+        @jit
+        def _online_update_fn(ratings, matchups, outcomes):
+            def step(ratings, matchup_outcome):
+                matchup, outcome = matchup_outcome
+                update = grad_fn(ratings[matchup], outcome) * lr
+                return ratings.at[matchup].add(-update), None
+
+            ratings, _ = lax.scan(step, ratings, (matchups, outcomes))
+            return ratings
 
         @jit
         def _predict_fn(ratings, matchups):
@@ -53,9 +72,8 @@ class AutogradRatingSystem(OnlineRatingSystem):
             return probs
 
         self.predict_fn = _predict_fn
-
-        self.grad_fn = grad(likelihood_fn)
-        self.learning_rate = learning_rate * scale
+        self.batched_update_fn = _batched_update_fn
+        self.online_update_fn = _online_update_fn
 
         if update_method == 'batched':
             self.update = self.batched_update
@@ -64,11 +82,27 @@ class AutogradRatingSystem(OnlineRatingSystem):
         else:
             raise ValueError(f'update_method must be one of online or batched, got {update_method}')
 
+    def _pad(self, matchups: np.ndarray, outcomes: np.ndarray = None):
+        """
+        Pad a batch to the next power-of-two length so jit compiles O(log(max batch size))
+        shapes instead of one per distinct rating period size. Padding rows are self-matchups
+        with outcome 0.5, whose likelihood gradient is exactly zero for any cdf.
+        """
+        num_matchups = matchups.shape[0]
+        padded_len = 1 << (num_matchups - 1).bit_length()
+        if padded_len != num_matchups:
+            matchups = np.concatenate([matchups, np.zeros((padded_len - num_matchups, 2), dtype=matchups.dtype)])
+            if outcomes is not None:
+                outcomes = np.concatenate([outcomes, np.full(padded_len - num_matchups, 0.5, dtype=outcomes.dtype)])
+        if outcomes is None:
+            return jnp.array(matchups)
+        return jnp.array(matchups), jnp.array(outcomes)
+
     def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
         Generates predictions for a series of matchups between competitors.
         """
-        return self.predict_fn(self.ratings, matchups)
+        return self.predict_fn(self.ratings, self._pad(matchups))[: matchups.shape[0]]
 
     def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
         return self.ratings[matchups]
@@ -81,9 +115,8 @@ class AutogradRatingSystem(OnlineRatingSystem):
             matchups: Matchup information for the rating period.
             outcomes: Results of the matchups.
         """
-        grad = self.grad_fn(self.ratings, jnp.array(matchups), jnp.array(outcomes))
-        update = grad * self.learning_rate
-        self.ratings -= update
+        matchups, outcomes = self._pad(matchups, outcomes)
+        self.ratings = self.batched_update_fn(self.ratings, matchups, outcomes)
 
     def online_update(self, matchups, outcomes, **kwargs):
         """
@@ -93,12 +126,8 @@ class AutogradRatingSystem(OnlineRatingSystem):
             matchups: Sequential matchups in the rating period.
             outcomes: Results of each matchup.
         """
-        for idx in range(matchups.shape[0]):
-            matchup = matchups[idx : idx + 1, :]
-            outcome = outcomes[idx : idx + 1]
-            grad = self.grad_fn(self.ratings, jnp.array(matchup), jnp.array(outcome))
-            update = grad * self.learning_rate
-            self.ratings -= update
+        matchups, outcomes = self._pad(matchups, outcomes)
+        self.ratings = self.online_update_fn(self.ratings, matchups, outcomes)
 
     def print_leaderboard(self, num_places):
         sorted_idxs = np.argsort(-self.ratings)[:num_places]

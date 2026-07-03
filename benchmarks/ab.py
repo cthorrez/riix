@@ -55,7 +55,9 @@ def main():
             bench_args.extend([arg, value])
 
     repo_root = Path(
-        subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True
+        ).stdout.strip()
     )
     bench_script = repo_root / 'benchmarks' / 'bench.py'
     compare_script = repo_root / 'benchmarks' / 'compare.py'
