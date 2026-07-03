@@ -3,6 +3,7 @@ Constant Variance Glicko
 Martin Ingram 2021
 https://www.researchgate.net/publication/348511584_How_to_extend_Elo_a_Bayesian_perspective
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem

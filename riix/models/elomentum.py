@@ -2,6 +2,7 @@
 Elo + Momentum
 Invented by Clayton Thorrez (me)
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem

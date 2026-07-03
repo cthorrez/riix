@@ -4,6 +4,7 @@ The rating system by Cem Yuksel, 2024
   * supplemental: http://www.cemyuksel.com/research/matchmaking/i3d2024-matchmaking-supplemental.pdf
   * webpage: http://www.cemyuksel.com/research/matchmaking/
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem

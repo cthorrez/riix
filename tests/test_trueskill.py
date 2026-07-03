@@ -1,6 +1,7 @@
 """
 example from: https://github.com/sublee/trueskill/blob/master/trueskilltest.py
 """
+
 import math
 import pytest
 import numpy as np

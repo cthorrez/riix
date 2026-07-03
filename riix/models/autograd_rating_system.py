@@ -1,12 +1,12 @@
 """
 A general class implementing online gradient based rating systems on differentiable likelihoods
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 import jax.numpy as jnp
 from jax import grad, jit
-import jax.nn
 from jax.scipy.stats import logistic
 
 
@@ -38,15 +38,15 @@ class AutogradRatingSystem(OnlineRatingSystem):
             rating_diffs = matchup_ratings[:, 0] - matchup_ratings[:, 1]
             probs = self.cdf(rating_diffs / self.scale)
             return -jnp.log((outcomes * probs) + ((1.0 - outcomes) * (1.0 - probs))).sum()
-        
+
         @jit
         def _predict_fn(ratings, matchups):
             matchup_ratings = ratings[matchups]
             rating_diffs = matchup_ratings[:, 0] - matchup_ratings[:, 1]
             probs = self.cdf(rating_diffs / self.scale)
             return probs
+
         self.predict_fn = _predict_fn
-        
 
         self.grad_fn = grad(likelihood_fn)
         self.learning_rate = learning_rate * scale

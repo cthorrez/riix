@@ -1,4 +1,5 @@
 """utils for evaluating rating systems"""
+
 import time
 from functools import partial
 from copy import deepcopy
@@ -9,11 +10,11 @@ from riix.utils.data_utils import TimedPairDataset
 from riix.metrics import binary_metrics_suite
 
 
-def evaluate(model: OnlineRatingSystem, dataset: TimedPairDataset, metrics_mask: np.ndarray=None):
+def evaluate(model: OnlineRatingSystem, dataset: TimedPairDataset, metrics_mask: np.ndarray = None):
     """evaluate a rating system on a dataset"""
     start_time = time.time()
     if metrics_mask is None:
-        metrics_mask = np.ones(len(dataset), dtype=bool_)
+        metrics_mask = np.ones(len(dataset), dtype=np.bool_)
     probs = model.fit_dataset(dataset, return_pre_match_probs=True)[metrics_mask]
     outcomes = dataset.outcomes[metrics_mask]
     duration = time.time() - start_time
@@ -48,12 +49,7 @@ def grid_search(
     metric_multiplier = 1.0 if minimize_metric else -1.0
     best_metric = np.inf
 
-    func = partial(
-        eval_wrapper,
-        rating_system_class=rating_system_class,
-        dataset=dataset,
-        metrics_mask=metrics_mask
-    )
+    func = partial(eval_wrapper, rating_system_class=rating_system_class, dataset=dataset, metrics_mask=metrics_mask)
     all_metrics = list(map_fn(func, param_configurations))
     if num_processes:
         pool.close()

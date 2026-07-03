@@ -1,6 +1,7 @@
 """
 example from: http://www.glicko.net/glicko/glicko.pdf
 """
+
 import pytest
 import numpy as np
 from riix.models.glicko import Glicko

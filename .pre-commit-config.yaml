@@ -1,18 +1,13 @@
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.1.2
+  rev: v0.15.20
   hooks:
     - id: ruff
       args: [--fix, --exit-non-zero-on-fix]
     - id: ruff-format
-- repo: local
+- repo: https://github.com/astral-sh/uv-pre-commit
+  # uv version.
+  rev: 0.11.26
   hooks:
-  -   id: pdoc
-      name: pdoc
-      description: 'pdoc: Auto-generate API documentation for Python projects'
-      entry: pdoc -o docs -t docs --docformat google --logo ./riix_logo.png --favicon ./favicon.ico riix
-      language: python
-      language_version: python3
-      require_serial: true
-      types: [python]
+    - id: uv-lock

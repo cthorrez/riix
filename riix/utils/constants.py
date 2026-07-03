@@ -1,4 +1,5 @@
 """mathematical constants computed once here to avoid recomputation"""
+
 import math
 
 # general math constants

@@ -1,4 +1,5 @@
 """a template to copy and paste when implementing a new rating system"""
+
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 

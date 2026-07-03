@@ -5,13 +5,15 @@ on:
   push:
     branches:
       - main
-    # Alternative: only build for tags.
-    # tags:
-    #   - '*'
 
 # security: restrict permissions for CI jobs.
 permissions:
   contents: read
+
+# cancel superseded runs so only the latest push deploys
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: true
 
 jobs:
   # Build the documentation and upload the static HTML files as an artifact.
@@ -19,20 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: '3.12'
+          enable-cache: true
 
-      # ADJUST THIS: install all dependencies
-      - run: pip install -e .
-      - run: pip install pdoc
-      # ADJUST THIS: build your documentation into docs/.
-      # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
-      - run: pdoc -o docs -t docs --docformat google --logo https://cthorrez.github.io/riix/riix_logo.png --favicon https://cthorrez.github.io/riix/favicon.ico riix
+      - run: uv sync
+      - run: uv run pdoc -o _site -t docs --docformat google --logo https://cthorrez.github.io/riix/riix_logo.png --favicon https://cthorrez.github.io/riix/favicon.ico riix
+      # the logo and favicon are referenced by URL from the deployed site itself
+      - run: cp docs/riix_logo.png docs/favicon.ico _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/
+          path: _site/
 
   # Deploy the artifact to GitHub pages.
   # This is a separate job so that only actions/deploy-pages has the necessary permissions.

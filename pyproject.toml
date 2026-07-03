@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
 
 [project]
 name = "riix"
@@ -11,6 +11,7 @@ license = {file = "LICENSE"}
 authors = [
     {name="Clayton Thorrez", email="claytonthorrez@gmail.com"},
 ]
+requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "scipy",
@@ -24,13 +25,22 @@ Docs = "https://cthorrez.github.io/riix/"
 Repository = "https://github.com/cthorrez/riix"
 Issues = "https://github.com/cthorrez/riix/issues"
 
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "pdoc",
+    "pre-commit",
+]
+
+[tool.uv.build-backend]
+module-root = ""
 
 [tool.ruff]
 line-length = 120
-ignore-init-module-imports = true
 
 [tool.ruff.format]
-quote-style = "single"
+quote-style = 'single'
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]

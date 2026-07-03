@@ -1,4 +1,5 @@
 """TrueSkill"""
+
 import math
 import numpy as np
 from scipy.stats import norm
@@ -20,7 +21,7 @@ class TrueSkill(OnlineRatingSystem):
         tau: float = 0.0833,
         draw_probability=0.0,
         update_method: str = 'batched',
-        variance_increase_method = 'time',
+        variance_increase_method='time',
         dtype=np.float64,
     ):
         super().__init__(competitors)
@@ -73,8 +74,8 @@ class TrueSkill(OnlineRatingSystem):
         if self.variance_increase_method == 'time':
             # increase var according to time since played
             time_delta = time_step - self.prev_time_step
-            self.sigma2s[self.has_played] += time_delta * self.tau_squared 
-        else: # self.variance_increase_method == 'match':
+            self.sigma2s[self.has_played] += time_delta * self.tau_squared
+        else:  # self.variance_increase_method == 'match':
             # increase var according to the number of matches played
             self.sigma2s[active_in_period] += counts * self.tau_squared
         self.prev_time_step = time_step

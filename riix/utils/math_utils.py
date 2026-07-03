@@ -1,4 +1,5 @@
 """math utility functions for rating systems"""
+
 import math
 import statistics
 import numpy as np

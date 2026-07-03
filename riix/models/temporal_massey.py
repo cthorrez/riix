@@ -4,6 +4,7 @@ https://www.degruyter.com/document/doi/10.1515/jqas-2016-0093
 https://arxiv.org/abs/1702.00585
 
 """
+
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.models.elo import Elo

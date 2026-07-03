@@ -4,6 +4,7 @@ paper: http://www.glicko.net/research/dpcmsv.pdf
 example: http://www.glicko.net/glicko/glicko2.pdf
 
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem

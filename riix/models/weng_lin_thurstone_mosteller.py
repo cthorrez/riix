@@ -1,4 +1,5 @@
 """DEPRECATED!!!!, use weng_lin.WengLin with model="tm", keeping the code here for reference for now"""
+
 import math
 import numpy as np
 from scipy.stats import norm

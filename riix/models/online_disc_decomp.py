@@ -3,6 +3,7 @@ Online version of the Disc Decomposition rating system
 https://proceedings.mlr.press/v206/bertrand23a.html
 equations 8 and 9
 """
+
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import sigmoid

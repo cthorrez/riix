@@ -1,8 +1,10 @@
 """base class for online rating systems"""
+
 from abc import ABC
 from typing import Optional
 import numpy as np
 from riix.utils import TimedPairDataset
+
 
 class RatingSystem(ABC):
     rating_dim: int

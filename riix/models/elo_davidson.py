@@ -1,4 +1,5 @@
 """The Elo-Davidson rating system"""
+
 import numpy as np
 import math
 from riix.core.base import OnlineRatingSystem

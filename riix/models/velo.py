@@ -3,6 +3,7 @@ variance incorporated Elo
 Rating of players by Laplace approximation and dynamic modeling
 https://arxiv.org/abs/2310.10386
 """
+
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import sigmoid

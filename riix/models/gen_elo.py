@@ -3,6 +3,7 @@ Bayesian generalization of Elo by Martin Ingram
 https://www.researchgate.net/publication/348511584_How_to_extend_Elo_a_Bayesian_perspective
 equations 17-19 are relevant for the case without adding surface, and best-of effects
 """
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem

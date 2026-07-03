@@ -2,6 +2,7 @@
 online Markov Method
 https://www.degruyter.com/document/doi/10.1515/jqas-2019-0070
 """
+
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.models.elo import Elo

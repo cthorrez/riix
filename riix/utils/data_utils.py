@@ -21,7 +21,7 @@ class PairDataset:
         self._init_competitors(df, competitor_cols)
         self._init_matchups(df, competitor_cols)
         self.outcomes = df[outcome_col].to_numpy()
-        
+
         if verbose:
             self._print_stats()
 
@@ -35,22 +35,24 @@ class PairDataset:
     def _init_matchups(self, df: pl.DataFrame, competitor_cols: List[str]):
         """Create numerical matchup indices."""
         competitors_df = pl.DataFrame({'competitor': self.competitors}).lazy()
-        
+
         matchups_df = (
             df.lazy()
-            .select([
-                pl.col(competitor_cols[0]).cast(pl.Utf8).alias('comp1'),
-                pl.col(competitor_cols[1]).cast(pl.Utf8).alias('comp2')
-            ])
+            .select(
+                [
+                    pl.col(competitor_cols[0]).cast(pl.Utf8).alias('comp1'),
+                    pl.col(competitor_cols[1]).cast(pl.Utf8).alias('comp2'),
+                ]
+            )
             .join(
                 competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index1')),
                 left_on='comp1',
-                right_on='competitor'
+                right_on='competitor',
             )
             .join(
                 competitors_df.with_columns(pl.int_range(pl.len(), dtype=pl.Int32).alias('index2')),
                 left_on='comp2',
-                right_on='competitor'
+                right_on='competitor',
             )
             .select(['index1', 'index2'])
         )
@@ -106,12 +108,13 @@ class TimedPairDataset(PairDataset):
     ):
         super().__init__(df, competitor_cols, outcome_col, verbose=False)
         self._init_time_steps(df, datetime_col, time_step_col, rating_period)
-        
+
         if verbose:
             print(f'{self.unique_time_steps.max() + 1} rating periods of length {rating_period}')
 
-    def _init_time_steps(self, df: pl.DataFrame, datetime_col: Optional[str], 
-                        time_step_col: Optional[str], rating_period: str):
+    def _init_time_steps(
+        self, df: pl.DataFrame, datetime_col: Optional[str], time_step_col: Optional[str], rating_period: str
+    ):
         """Initialize temporal components."""
         if sum([bool(datetime_col), bool(time_step_col)]) != 1:
             raise ValueError('Specify exactly one of datetime_col or time_step_col')
@@ -165,8 +168,7 @@ class TimedPairDataset(PairDataset):
         return dataset
 
     @classmethod
-    def init_from_arrays(cls, time_steps: np.ndarray, matchups: np.ndarray, 
-                        outcomes: np.ndarray, competitors: list):
+    def init_from_arrays(cls, time_steps: np.ndarray, matchups: np.ndarray, outcomes: np.ndarray, competitors: list):
         """Factory method with temporal support."""
         dataset = super().init_from_arrays(matchups, outcomes, competitors)
         dataset.time_steps = time_steps
@@ -217,18 +219,19 @@ def generate_pair_data(
     outcomes = rng.multinomial(n=1, pvals=probs)
     outcomes = np.argmax(outcomes, axis=1) / 2.0  # Map 0->0, 1->0.5, 2->1.0
 
-    df = pl.DataFrame({
-        'timestamp': timestamps,
-        'competitor_1': matchups[:, 0],
-        'competitor_2': matchups[:, 1],
-        'outcome': outcomes,
-    })
-    df = (
-        df.with_columns([
+    df = pl.DataFrame(
+        {
+            'timestamp': timestamps,
+            'competitor_1': matchups[:, 0],
+            'competitor_2': matchups[:, 1],
+            'outcome': outcomes,
+        }
+    )
+    df = df.with_columns(
+        [
             (pl.col('timestamp') * 1000).cast(pl.Datetime('ms')).alias('date'),
             pl.concat_str([pl.lit('competitor_'), pl.col('competitor_1').cast(pl.Utf8)]).alias('competitor_1'),
-            pl.concat_str([pl.lit('competitor_'), pl.col('competitor_2').cast(pl.Utf8)]).alias('competitor_2')
-        ])
-        .drop('timestamp')
-    )
+            pl.concat_str([pl.lit('competitor_'), pl.col('competitor_2').cast(pl.Utf8)]).alias('competitor_2'),
+        ]
+    ).drop('timestamp')
     return df

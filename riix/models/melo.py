@@ -1,4 +1,5 @@
 """Multidimensional Elo"""
+
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
@@ -49,7 +50,7 @@ class Melo(Elo):
         self.alpha = alpha
         self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
         two_k = 2 * dimension
-        self.c = generate_orthogonal_matrix(d=two_k, k=self.num_competitors).T # / 10.0
+        self.c = generate_orthogonal_matrix(d=two_k, k=self.num_competitors).T  # / 10.0
 
         # rng = np.random.default_rng(42)
         # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))

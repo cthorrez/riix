@@ -3,3 +3,8 @@
 *.zip
 
 *.egg-info/
+__pycache__/
+.venv/
+dist/
+.pytest_cache/
+_site/

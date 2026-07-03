@@ -1,4 +1,5 @@
 """Weng/Lin Bayesian Online Rating system"""
+
 import math
 import numpy as np
 from scipy.stats import norm
