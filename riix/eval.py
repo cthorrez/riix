@@ -1,7 +1,6 @@
 """utils for evaluating rating systems"""
 
 import time
-from functools import partial
 from copy import deepcopy
 from multiprocessing import Pool
 import numpy as np
@@ -28,6 +27,23 @@ def eval_wrapper(params, rating_system_class, dataset, metrics_mask):
     return evaluate(model, dataset, metrics_mask)
 
 
+# grid_search worker state, set once per worker process by _init_grid_search_worker so that only
+# the (small) param dicts are pickled per task rather than the dataset itself
+_worker_state = {}
+
+
+def _init_grid_search_worker(rating_system_class, dataset, metrics_mask):
+    _worker_state['rating_system_class'] = rating_system_class
+    _worker_state['dataset'] = dataset
+    _worker_state['metrics_mask'] = metrics_mask
+
+
+def _grid_search_task(params):
+    return eval_wrapper(
+        params, _worker_state['rating_system_class'], _worker_state['dataset'], _worker_state['metrics_mask']
+    )
+
+
 def grid_search(
     rating_system_class,
     dataset,
@@ -39,21 +55,22 @@ def grid_search(
     return_all_metrics=False,
 ):
     """Perform grid search and return the best hyperparameters."""
-    map_fn = map
-    if num_processes:
-        pool = Pool(num_processes)
-        map_fn = pool.map
-
     best_params = {}
     best_metrics = {}
     metric_multiplier = 1.0 if minimize_metric else -1.0
     best_metric = np.inf
 
-    func = partial(eval_wrapper, rating_system_class=rating_system_class, dataset=dataset, metrics_mask=metrics_mask)
-    all_metrics = list(map_fn(func, param_configurations))
     if num_processes:
-        pool.close()
-        pool.join()
+        with Pool(
+            num_processes,
+            initializer=_init_grid_search_worker,
+            initargs=(rating_system_class, dataset, metrics_mask),
+        ) as pool:
+            all_metrics = pool.map(_grid_search_task, param_configurations)
+    else:
+        all_metrics = [
+            eval_wrapper(params, rating_system_class, dataset, metrics_mask) for params in param_configurations
+        ]
 
     for current_params, current_metrics in zip(param_configurations, all_metrics):
         current_metric = current_metrics[metric]

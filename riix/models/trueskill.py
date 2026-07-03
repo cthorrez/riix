@@ -5,6 +5,7 @@ import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_w_draw_vector, v_and_w_draw_scalar
+from riix.utils.math_utils import scatter_sum
 
 
 class TrueSkill(OnlineRatingSystem):
@@ -86,8 +87,6 @@ class TrueSkill(OnlineRatingSystem):
 
         active_in_period = self.increase_rating_dev(time_step, matchups)
 
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
-
         sigma2s = self.sigma2s[matchups]
         if use_cache:
             norm_diffs = self.cache['norm_diffs']
@@ -123,10 +122,12 @@ class TrueSkill(OnlineRatingSystem):
         mu_updates = mu_updates * outcome_multiplier[:, None]
 
         sigma2_updates = (np.square(sigma2s) * ws[:, None]) / combined_sigma2s[:, None]
-        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
+        mu_updates_pooled = scatter_sum(mu_updates, matchups, self.num_competitors)[active_in_period]
 
-        matchups_per_competitor = np.sum(masks, axis=(0, 1))
-        sigma2_updates_pooled = (sigma2_updates[:, :, None] * masks).sum(axis=(0, 1)) / matchups_per_competitor
+        matchups_per_competitor = np.bincount(matchups.ravel(), minlength=self.num_competitors)[active_in_period]
+        sigma2_updates_pooled = (
+            scatter_sum(sigma2_updates, matchups, self.num_competitors)[active_in_period] / matchups_per_competitor
+        )
 
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] -= sigma2_updates_pooled
@@ -135,29 +136,28 @@ class TrueSkill(OnlineRatingSystem):
         """treat the matchups in the rating period as if they were sequential"""
         if self.variance_increase_method == 'time':
             self.increase_rating_dev(time_step, matchups)
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
+        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
             if self.variance_increase_method == 'match':
-                self.sigma2s[matchups[idx]] += self.tau_squared
+                self.sigma2s[comp_1] += self.tau_squared
+                self.sigma2s[comp_2] += self.tau_squared
             rating_diff = self.mus[comp_1] - self.mus[comp_2]
-            sigma2s = self.sigma2s[matchups[idx]]
+            sigma2_1 = self.sigma2s[comp_1]
+            sigma2_2 = self.sigma2s[comp_2]
 
-            combined_sigma2 = self.two_beta_squared + sigma2s.sum()
-            combined_dev = np.sqrt(combined_sigma2)
-            norm_diff = (rating_diff) / combined_dev
+            combined_sigma2 = self.two_beta_squared + sigma2_1 + sigma2_2
+            combined_dev = math.sqrt(combined_sigma2)
+            norm_diff = rating_diff / combined_dev
 
-            outcome = outcomes[idx]
             sign_multiplier = outcome if outcome else -1.0
             if outcome != 0.5:
                 v, w = v_and_w_win_scalar(norm_diff * sign_multiplier, self.epsilon / combined_dev)
             else:
                 v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
 
-            mu_updates = (sigma2s / combined_dev) * v * sign_multiplier
-            sigma2_updates = (np.square(sigma2s) / combined_sigma2) * w
-            self.mus[comp_1] += mu_updates[0]
-            self.mus[comp_2] -= mu_updates[1]
-            self.sigma2s[matchups[idx]] -= sigma2_updates
+            self.mus[comp_1] += (sigma2_1 / combined_dev) * v * sign_multiplier
+            self.mus[comp_2] -= (sigma2_2 / combined_dev) * v * sign_multiplier
+            self.sigma2s[comp_1] -= (sigma2_1 * sigma2_1 / combined_sigma2) * w
+            self.sigma2s[comp_2] -= (sigma2_2 * sigma2_2 / combined_sigma2) * w
 
     def print_leaderboard(self, num_places):
         sort_array = self.mus - (3.0 * np.sqrt(self.sigma2s))

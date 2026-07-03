@@ -4,7 +4,7 @@ import math
 import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum, scatter_max
 from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar
 
 
@@ -88,11 +88,10 @@ class WengLin(OnlineRatingSystem):
         self.prev_time_step = time_step
         return active_in_period
 
-    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
+    def batched_update(self, matchups, outcomes, time_step=None, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         # TODO fix the update to actually be based on time...
-        active_in_period = self.increase_rating_dev(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
+        active_in_period = self.increase_rating_dev(time_step, matchups)
 
         mus = self.mus[matchups]
         sigma2s = self.sigma2s[matchups]
@@ -115,50 +114,54 @@ class WengLin(OnlineRatingSystem):
 
         sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
 
-        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
+        mu_updates_pooled = scatter_sum(mu_updates, matchups, self.num_competitors)[active_in_period]
         # aggregating by prod does NOT work well empirically, variance decreases way too fast
         # empirically max works really well
-        sigma2_multipliers_pooled = np.max(sigma2_multipliers[:, :, None] * masks, axis=(0, 1))
+        sigma2_multipliers_pooled = scatter_max(sigma2_multipliers, matchups, self.num_competitors)[active_in_period]
 
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled
 
-    def bradley_terry_scalar_updates(self, norm_diff, sigma2s, combined_sigma2, combined_dev, outcome):
+    def bradley_terry_scalar_updates(self, norm_diff, sigma2_1, sigma2_2, combined_sigma2, combined_dev, outcome):
         prob = sigmoid_scalar(norm_diff)
-        deltas = (sigma2s / combined_dev) * (outcome - prob)
-        gammas = np.sqrt(sigma2s) / combined_dev
-        etas = gammas * (sigma2s / combined_sigma2) * (prob * (1.0 - prob))
-        return deltas, etas
+        delta_1 = (sigma2_1 / combined_dev) * (outcome - prob)
+        delta_2 = (sigma2_2 / combined_dev) * (outcome - prob)
+        prob_product = prob * (1.0 - prob)
+        eta_1 = (math.sqrt(sigma2_1) / combined_dev) * (sigma2_1 / combined_sigma2) * prob_product
+        eta_2 = (math.sqrt(sigma2_2) / combined_dev) * (sigma2_2 / combined_sigma2) * prob_product
+        return delta_1, delta_2, eta_1, eta_2
 
-    def thurstone_mosteller_scalar_updates(self, norm_diff, sigma2s, combined_sigma2, combined_dev, outcome):
+    def thurstone_mosteller_scalar_updates(self, norm_diff, sigma2_1, sigma2_2, combined_sigma2, combined_dev, outcome):
         sign_multiplier = outcome if outcome else -1.0
         if outcome != 0.5:
             v, w = v_and_w_win_scalar(norm_diff * sign_multiplier, self.epsilon / combined_dev)
         else:
             v, w = v_and_w_draw_scalar(norm_diff, self.epsilon / combined_dev)
 
-        deltas = sign_multiplier * (sigma2s / combined_dev) * v
-        gammas = np.sqrt(sigma2s) / combined_dev
-        etas = gammas * (sigma2s / combined_sigma2) * w
-        return deltas, etas
+        delta_1 = sign_multiplier * (sigma2_1 / combined_dev) * v
+        delta_2 = sign_multiplier * (sigma2_2 / combined_dev) * v
+        eta_1 = (math.sqrt(sigma2_1) / combined_dev) * (sigma2_1 / combined_sigma2) * w
+        eta_2 = (math.sqrt(sigma2_2) / combined_dev) * (sigma2_2 / combined_sigma2) * w
+        return delta_1, delta_2, eta_1, eta_2
 
     def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            # self.sigma2s[matchups[idx]] += self.tau_squared
-            sigma2s = self.sigma2s[matchups[idx]]
-            combined_sigma2 = self.two_beta_squared + sigma2s.sum()
-            combined_dev = np.sqrt(combined_sigma2)
+        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
+            sigma2_1 = self.sigma2s[comp_1]
+            sigma2_2 = self.sigma2s[comp_2]
+            combined_sigma2 = self.two_beta_squared + sigma2_1 + sigma2_2
+            combined_dev = math.sqrt(combined_sigma2)
             norm_diff = (self.mus[comp_1] - self.mus[comp_2]) / combined_dev
 
-            deltas, etas = self.model_func(norm_diff, sigma2s, combined_sigma2, combined_dev, outcomes[idx])
-            sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
+            delta_1, delta_2, eta_1, eta_2 = self.model_func(
+                norm_diff, sigma2_1, sigma2_2, combined_sigma2, combined_dev, outcome
+            )
 
-            self.mus[comp_1] += deltas[0]
-            self.mus[comp_2] -= deltas[1]
-            self.sigma2s[matchups[idx]] *= sigma2_multipliers
+            self.mus[comp_1] += delta_1
+            self.mus[comp_2] -= delta_2
+            self.sigma2s[comp_1] *= max(1.0 - eta_1, self.kappa)
+            self.sigma2s[comp_2] *= max(1.0 - eta_2, self.kappa)
 
     def print_leaderboard(self, num_places):
         sort_array = self.mus - (3.0 * np.sqrt(self.sigma2s))

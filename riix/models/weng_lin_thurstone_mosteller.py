@@ -5,6 +5,7 @@ import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_win_vector, v_and_w_draw_vector, v_and_w_draw_scalar
+from riix.utils.math_utils import scatter_sum, scatter_max
 
 
 class WengLinThurstoneMosteller(OnlineRatingSystem):
@@ -79,7 +80,6 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         """apply one update based on all of the results of the rating period"""
         # TODO fix the update to actually be based on time...
         active_in_period = self.increase_rating_dev(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         sigma2s = self.sigma2s[matchups]
         if use_cache:
@@ -117,8 +117,8 @@ class WengLinThurstoneMosteller(OnlineRatingSystem):
         etas = gammas * (sigma2s * ws) / combined_sigma2s[:, None]
         sigma2_multipliers = np.maximum(1.0 - etas, self.kappa)
 
-        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum((0, 1))
-        sigma2_multipliers_pooled = np.max(sigma2_multipliers[:, :, None] * masks, axis=(0, 1))
+        mu_updates_pooled = scatter_sum(mu_updates, matchups, self.num_competitors)[active_in_period]
+        sigma2_multipliers_pooled = scatter_max(sigma2_multipliers, matchups, self.num_competitors)[active_in_period]
 
         self.mus[active_in_period] += mu_updates_pooled
         self.sigma2s[active_in_period] *= sigma2_multipliers_pooled

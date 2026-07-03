@@ -12,6 +12,44 @@ def sigmoid(x):
     return expit(x)
 
 
+def scatter_sum(values: np.ndarray, matchups: np.ndarray, num_competitors: int) -> np.ndarray:
+    """
+    Sum per-matchup-slot values into a per-competitor array.
+
+    Args:
+        values: array of shape (n, 2), or (n, 2, d) for d-dimensional values, aligned with matchups.
+        matchups: (n, 2) int array of competitor indices.
+        num_competitors: length of the output array.
+
+    Returns:
+        np.ndarray: per-competitor sums, shape (num_competitors,) or (num_competitors, d).
+    """
+    if values.ndim == matchups.ndim + 1:
+        flat_values = values.reshape(-1, values.shape[-1])
+        out = np.empty((num_competitors, values.shape[-1]))
+        for dim in range(values.shape[-1]):
+            out[:, dim] = np.bincount(matchups.ravel(), weights=flat_values[:, dim], minlength=num_competitors)
+        return out
+    return np.bincount(matchups.ravel(), weights=values.ravel(), minlength=num_competitors)
+
+
+def scatter_max(values: np.ndarray, matchups: np.ndarray, num_competitors: int) -> np.ndarray:
+    """
+    Max-pool per-matchup-slot values into a per-competitor array, with a floor of 0.0.
+
+    Args:
+        values: array of shape (n, 2) aligned with matchups.
+        matchups: (n, 2) int array of competitor indices.
+        num_competitors: length of the output array.
+
+    Returns:
+        np.ndarray: per-competitor maxima (at least 0.0), shape (num_competitors,).
+    """
+    out = np.zeros(num_competitors)
+    np.maximum.at(out, matchups.ravel(), values.ravel())
+    return out
+
+
 def sigmoid_scalar(x):
     """no need to use numpy on scalars"""
     return 1.0 / (1.0 + math.exp(-x))

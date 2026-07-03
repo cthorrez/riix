@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import norm
 from riix.core.base import OnlineRatingSystem
 from riix.utils.math_utils import base_10_sigmoid
-from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar, norm_cdf
+from riix.utils.math_utils import v_and_w_win_scalar, v_and_w_draw_scalar, norm_cdf, scatter_sum, scatter_max
 
 LOG10 = math.log(10.0)
 LOG10_SQUARED = LOG10**2.0
@@ -110,7 +110,6 @@ class VSKF(OnlineRatingSystem):
     def batched_update(self, matchups, outcomes, time_step, use_cache=False):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.time_dynamics_update(time_step, matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         mus = self.mus[matchups]
         vs = self.vs[matchups]
@@ -130,8 +129,8 @@ class VSKF(OnlineRatingSystem):
 
         v_updates = 1.0 - vs * v_updates[:, None]
 
-        mu_updates_pooled = (mu_updates[:, :, None] * masks).sum(axis=(0, 1))
-        v_updates_pooled = (v_updates[:, :, None] * masks).max(axis=(0, 1))
+        mu_updates_pooled = scatter_sum(mu_updates, matchups, self.num_competitors)[active_in_period]
+        v_updates_pooled = scatter_max(v_updates, matchups, self.num_competitors)[active_in_period]
 
         self.mus[active_in_period] += self.vs[active_in_period] * mu_updates_pooled
         self.vs[active_in_period] *= v_updates_pooled

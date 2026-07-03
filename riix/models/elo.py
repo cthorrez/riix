@@ -3,7 +3,7 @@
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
 
 
 class Elo(OnlineRatingSystem):
@@ -89,14 +89,13 @@ class Elo(OnlineRatingSystem):
             use_cache: Flag to use cached probabilities or calculate anew.
         """
         active_in_period = np.unique(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
         if use_cache:
             probs = self.cache['probs']
         else:
             probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
         per_match_diff = (outcomes - probs)[:, None]
         per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
+        per_competitor_diff = scatter_sum(per_match_diff, matchups, self.num_competitors)[active_in_period]
         self.ratings[active_in_period] += self.k * per_competitor_diff
 
     def online_update(self, matchups, outcomes, **kwargs):

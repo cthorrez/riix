@@ -4,7 +4,7 @@ import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
 from riix.models.elo import Elo
-from riix.utils.math_utils import sigmoid
+from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 def generate_orthogonal_matrix(d, k):
@@ -89,7 +89,6 @@ class Melo(Elo):
     def batched_update(self, matchups, outcomes, time_step=None, use_cache=False):
         """apply one update based on all of the results of the rating period"""
         active_in_period = np.unique(matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         c_1 = self.c[matchups[:, 0], :]  # [bs, 2k]
         c_2 = self.c[matchups[:, 1], :]  # [bs, 2k]
@@ -103,12 +102,12 @@ class Melo(Elo):
 
         per_match_diff = (outcomes - probs)[:, None]
         per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = (per_match_diff[:, :, None] * masks).sum(axis=(0, 1))
+        per_competitor_diff = scatter_sum(per_match_diff, matchups, self.num_competitors)[active_in_period]
 
         dp_dc_1 = np.matmul(c_2, self.omega)
         dp_dc = np.stack([dp_dc_1, -1.0 * dp_dc_2], axis=1)
         c_updates = self.eta_c * per_match_diff[:, :, None] * dp_dc
-        c_updates_pooled = (c_updates[:, :, None] * masks[:, :, :, None]).sum(axis=(0, 1))
+        c_updates_pooled = scatter_sum(c_updates, matchups, self.num_competitors)[active_in_period]
 
         self.ratings[active_in_period] += self.eta_r * per_competitor_diff
         self.c[active_in_period] += c_updates_pooled

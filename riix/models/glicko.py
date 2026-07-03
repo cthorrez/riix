@@ -3,7 +3,7 @@
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
 from riix.utils.constants import PI2, Q, Q2, Q2_3
 
 
@@ -113,7 +113,6 @@ class Glicko(OnlineRatingSystem):
     def batched_update(self, matchups, outcomes, time_step, use_cache=False, **kwargs):
         """apply one update based on all of the results of the rating period"""
         active_in_period = self.increase_rating_dev(time_step, matchups)
-        masks = np.equal(matchups[:, :, None], active_in_period[None, :])  # N x 2 x active
 
         ratings = self.ratings[matchups]
         rating_diffs = ratings[:, 0] - ratings[:, 1]
@@ -122,12 +121,17 @@ class Glicko(OnlineRatingSystem):
         probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
 
         tmp = np.stack([probs_1 * (1.0 - probs_1), probs_2 * (1.0 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
-        d2 = 1.0 / ((tmp[:, :, None] * masks).sum(axis=(0, 1)) * Q2)
+        d2 = 1.0 / (scatter_sum(tmp, matchups, self.num_competitors)[active_in_period] * Q2)
 
         outcomes = np.hstack([outcomes[:, None], 1.0 - outcomes[:, None]])
         probs = np.hstack([probs_1[:, None], probs_2[:, None]])
 
-        r_num = Q * ((g_rating_devs[:, [1, 0]] * (outcomes - probs))[:, :, None] * masks).sum(axis=(0, 1))
+        r_num = (
+            Q
+            * scatter_sum(g_rating_devs[:, [1, 0]] * (outcomes - probs), matchups, self.num_competitors)[
+                active_in_period
+            ]
+        )
         r_denom = (1.0 / np.square(self.rating_devs[active_in_period])) + (1.0 / d2)
 
         self.ratings[active_in_period] += r_num / r_denom
@@ -136,17 +140,16 @@ class Glicko(OnlineRatingSystem):
     def online_update(self, matchups, outcomes, time_step, **kwargs):
         """treat the matchups in the rating period as if they were sequential"""
         self.increase_rating_dev(time_step, matchups)
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
+        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
             rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            g_rating_devs = self.g_vector(self.rating_devs[matchups[idx]])
-            g_rating_devs_2 = np.square(g_rating_devs)
-            prob_1 = sigmoid_scalar(Q * g_rating_devs[1] * rating_diff)
-            prob_2 = sigmoid_scalar(-Q * g_rating_devs[0] * rating_diff)
-            d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * g_rating_devs_2[1])
-            d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * g_rating_devs_2[0])
-            r1_num = Q * g_rating_devs[1] * (outcomes[idx] - prob_1)
-            r2_num = Q * g_rating_devs[0] * (1.0 - outcomes[idx] - prob_2)
+            g_1 = self.g_scalar(self.rating_devs[comp_1])
+            g_2 = self.g_scalar(self.rating_devs[comp_2])
+            prob_1 = sigmoid_scalar(Q * g_2 * rating_diff)
+            prob_2 = sigmoid_scalar(-Q * g_1 * rating_diff)
+            d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * (g_2 * g_2))
+            d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * (g_1 * g_1))
+            r1_num = Q * g_2 * (outcome - prob_1)
+            r2_num = Q * g_1 * (1.0 - outcome - prob_2)
             r1_denom = (1.0 / (self.rating_devs[comp_1] ** 2.0)) + (1.0 / d2_1)
             r2_denom = (1.0 / (self.rating_devs[comp_2] ** 2.0)) + (1.0 / d2_2)
 

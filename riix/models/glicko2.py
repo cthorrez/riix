@@ -8,7 +8,7 @@ example: http://www.glicko.net/glicko/glicko2.pdf
 import math
 import numpy as np
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
+from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
 from riix.utils.constants import THREE_OVER_PI_SQUARED
 
 
@@ -108,7 +108,6 @@ class Glicko2(OnlineRatingSystem):
             self.initial_phi,
         )
 
-        active_mask = np.equal(matchups[:, :, None], active_in_period[None, :])  # (M,2,n_active)
         mus = self.mus[matchups]
         phis = self.phis[matchups]
         gs = self.g_vector(phis)[:, [1, 0]]  # swap gs since competitors interact with opponents' variance
@@ -116,9 +115,9 @@ class Glicko2(OnlineRatingSystem):
         probs = sigmoid(gs * mu_diffs)
         stacked_outcomes = np.column_stack((outcomes, 1.0 - outcomes))
 
-        vs = 1.0 / ((np.square(gs) * probs * (1.0 - probs))[:, :, None] * active_mask).sum(axis=(0, 1))  # (n_active,)
+        vs = 1.0 / scatter_sum(np.square(gs) * probs * (1.0 - probs), matchups, self.num_competitors)[active_in_period]
         # this is kinda like a gradient
-        grads = ((gs * (stacked_outcomes - probs))[:, :, None] * active_mask).sum(axis=(0, 1))  # (n_active,)
+        grads = scatter_sum(gs * (stacked_outcomes - probs), matchups, self.num_competitors)[active_in_period]
         deltas = vs * grads
 
         sigma_primes = np.empty(active_in_period.shape)
@@ -175,8 +174,7 @@ class Glicko2(OnlineRatingSystem):
         """treat the matchups in the rating period as if they were sequential"""
         # increase the phi's once at the beginning of the rating period with the prior sigma
         self.increase_rating_dev(time_step, matchups)
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
+        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
             mu_1 = self.mus[comp_1]
             mu_2 = self.mus[comp_2]
             mu_diff = mu_1 - mu_2
@@ -189,8 +187,8 @@ class Glicko2(OnlineRatingSystem):
             v_1 = 1.0 / ((g_2**2.0) * p_1 * (1.0 - p_1))
             v_2 = 1.0 / ((g_1**2.0) * p_2 * (1.0 - p_2))
 
-            delta_1 = v_1 * g_2 * (outcomes[idx] - p_1)
-            delta_2 = v_2 * g_1 * (1.0 - outcomes[idx] - p_2)
+            delta_1 = v_1 * g_2 * (outcome - p_1)
+            delta_2 = v_2 * g_1 * (1.0 - outcome - p_2)
 
             sigma_star_1 = self.get_sigma_prime(phi_1, delta_1, v_1, self.sigmas[comp_1])
             sigma_star_2 = self.get_sigma_prime(phi_2, delta_2, v_2, self.sigmas[comp_2])
@@ -204,8 +202,8 @@ class Glicko2(OnlineRatingSystem):
             self.phis[comp_1] = 1.0 / math.sqrt((1.0 / (phi_1**2.0)) + (1.0 / v_1))
             self.phis[comp_2] = 1.0 / math.sqrt((1.0 / (phi_2**2.0)) + (1.0 / v_2))
 
-            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_2 * (outcomes[idx] - p_1)
-            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_1 * (1.0 - outcomes[idx] - p_2)
+            self.mus[comp_1] += (self.phis[comp_1] ** 2.0) * g_2 * (outcome - p_1)
+            self.mus[comp_2] += (self.phis[comp_2] ** 2.0) * g_1 * (1.0 - outcome - p_2)
 
     def print_leaderboard(self, num_places):
         sort_array = self.mus - (3.0 * np.square(self.phis))
