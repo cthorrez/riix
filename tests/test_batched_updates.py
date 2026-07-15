@@ -6,11 +6,20 @@ exactly the same ratings as the online update.
 """
 
 import numpy as np
+import jax
 import pytest
 from riix.models.elo import Elo
 from riix.models.elomentum import EloMentum
 from riix.models.online_disc_decomp import OnlineDiscDecomp
 from riix.utils.data_utils import TimedPairDataset
+
+
+@pytest.fixture(scope='module', autouse=True)
+def enable_x64():
+    """rtol=1e-12 needs float64; jax needs the x64 flag for float64 arrays."""
+    jax.config.update('jax_enable_x64', True)
+    yield
+    jax.config.update('jax_enable_x64', False)
 
 
 @pytest.fixture(scope='module')
@@ -37,12 +46,14 @@ def dataset():
     ],
 )
 def test_batched_matches_online_on_single_matchup_periods(model_class, kwargs, dataset):
-    online = model_class(competitors=dataset.competitors, update_method='online', **kwargs)
-    batched = model_class(competitors=dataset.competitors, update_method='batched', **kwargs)
+    online = model_class(competitors=dataset.competitors, update_method='online', dtype=np.float64, **kwargs)
+    batched = model_class(competitors=dataset.competitors, update_method='batched', dtype=np.float64, **kwargs)
     online_probs = online.fit_dataset(dataset, return_pre_match_probs=True).probs
     batched_probs = batched.fit_dataset(dataset, return_pre_match_probs=True).probs
     np.testing.assert_allclose(online_probs, batched_probs, rtol=1e-12)
-    np.testing.assert_allclose(online.get_pre_match_ratings(dataset.matchups), batched.get_pre_match_ratings(dataset.matchups), rtol=1e-12)
+    np.testing.assert_allclose(
+        online.get_pre_match_ratings(dataset.matchups), batched.get_pre_match_ratings(dataset.matchups), rtol=1e-12
+    )
 
 
 def test_disc_decomp_vs_actually_update(dataset):

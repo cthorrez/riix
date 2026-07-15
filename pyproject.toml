@@ -4,23 +4,25 @@ build-backend = "uv_build"
 
 [project]
 name = "riix"
-version = "0.0.6"
+version = "0.1.0"
 description = "vectorized implementations of online rating systems"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
     {name="Clayton Thorrez", email="claytonthorrez@gmail.com"},
 ]
-requires-python = ">=3.10"
+# jax (a core dependency since 0.1.0) requires >=3.11
+requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
     "polars",
+    "jax",
 ]
 keywords = ["rating system", "paired comparison"]
 
 [project.optional-dependencies]
-jax = ["jax"]
+optuna = ["optuna"]
 
 [project.urls]
 Docs = "https://cthorrez.github.io/riix/"
@@ -33,7 +35,7 @@ dev = [
     "ruff",
     "pdoc",
     "pre-commit",
-    "jax",
+    "optuna",
 ]
 
 [tool.uv.build-backend]

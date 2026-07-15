@@ -1,7 +1,7 @@
 Open source implementations of online rating systems focusing on efficiency for offline experimentation
 
 ## When to use riix
-This package is designed to accelerate experiments studying and comparing rating systems. In the scenario where you have paired comparison datasets with a known number of competitors and time range, riix exploits that information to achieve fast runtimes. It's **not** useful in the streaming case where new data with new competitors are coming in. It also only currently supports 1v1 competitions but future support for two team competitions is planned. (more than 2 teams is not)
+This package is designed to accelerate experiments studying and comparing rating systems. In the scenario where you have paired comparison datasets with a known number of competitors and time range, riix exploits that information to achieve fast runtimes. It's **not** useful in the streaming case where new data with new competitors are coming in. It supports exactly 1v1 competitions — a competitor can be a single player or a whole team rated as one unit, but rating individual players within multi-player teams is out of scope.
 
 
 > I have a large dataset of player matches for a game and want to determine which rating system out of Elo, Glicko, TrueSkill etc. gives the best predictive accuracy.
@@ -20,6 +20,14 @@ There are lots of other great python packages for that too! (just not riix)
   * [sublee/glicko2](https://github.com/sublee/glicko2)
   * [deepy/glicko2](https://github.com/deepy/glicko2)
 * [whole_history_rating](https://github.com/pfmonville/whole_history_rating) Python port of [WHR](https://www.remi-coulom.fr/WHR/)
+
+## Installation
+
+```bash
+pip install riix
+```
+
+Requires Python ≥3.11. riix is built on [jax](https://docs.jax.dev), which is installed automatically; note that the jaxlib CPU wheel is large (~86 MB download, ~345 MB installed). GPU execution works by installing a CUDA-enabled jax variant (e.g. `pip install "jax[cuda12]"`) alongside riix.
 
 ## Example
 ```python
@@ -46,22 +54,35 @@ print(f'{len(train_dataset)=}, {len(test_dataset)=}')
 >>> len(train_dataset)=8000, len(test_dataset)=2000
 
 model = Elo(competitors=dataset.competitors)
-model.fit_dataset(train_dataset)
+model.fit_dataset(train_dataset)  # a second fit continues exactly like one fit of the concatenation
 test_probs = model.fit_dataset(test_dataset, return_pre_match_probs=True).probs
 test_metrics = binary_metrics_suite(probs=test_probs, outcomes=test_dataset.outcomes)
 print(test_metrics)
 
->>> {'accuracy': 0.72975, 'accuracy_without_draws': 0.730095142714071, 'log_loss': 0.5359083106524117, 'brier_score': 0.1793377446861956}
+>>> {'accuracy': 0.72825, 'accuracy_without_draws': 0.728592889334001, 'log_loss': 0.5383001523548737, 'brier_score': 0.1802256903116116}
 
 model.print_leaderboard(num_places=5)
 
 >>> competitor   	rating
->>> competitor_69	1874.170019
->>> competitor_75	1827.933570
->>> competitor_12	1826.119826
->>> competitor_81	1825.071605
->>> competitor_30	1802.338983
+>>> competitor_69	1874.170044
+>>> competitor_75	1827.933472
+>>> competitor_12	1826.119751
+>>> competitor_81	1825.071777
+>>> competitor_30	1802.338867
 ```
+
+Returned probabilities are **prequential** by default — match *i* is predicted from the state after match *i-1*. Pass `predict_mode='period_start'` to instead predict every match in a rating period from period-start state: that is the honest protocol when your time granularity is a date and within-period order is arbitrary, since prequential probabilities leak within-period ordering. `update_method='batched'` applies one simultaneous update per rating period (on the systems that support it) and is inherently period-start.
+
+## Design and performance
+
+Every rating system runs on a jax `jit` + `lax.scan` backend (since 0.1.0):
+
+- **One compiled scan per fit.** `fit_dataset` lowers the entire dataset into a single `lax.scan` whose step processes one match: gather the two competitors' states, predict, update, scatter back. No per-match or per-period python loop.
+- **Compile once, fit many.** Hyperparameters are traced, so the compiled kernel is cached across model instances and hyperparameter values — one compile per (model class, mode, dtype, dataset shape). The first fit pays ~0.5-1s of compilation; every configuration of a hyperparameter sweep after that runs warm. `riix.eval.grid_search` / `random_search` / `optuna_search` exploit this; single-process sweeps are usually fastest since workers would each recompile.
+- **Time dynamics precomputed outside jax.** Rating-deviation inflation (Glicko, Glicko2, TrueSkill, ...) comes from a vectorized numpy pre-pass, keeping the scan carry a small tuple of float arrays.
+- **float32 by default.** For float64, pass `dtype=jnp.float64` to the constructor *and* run `jax.config.update('jax_enable_x64', True)` before fitting.
+
+Warm fits run 2-30x faster than the numpy implementations they replaced, and batched-mode fits of a million matches land in tens of milliseconds; see [benchmarks/RESULTS.md](benchmarks/RESULTS.md) for measured comparisons against other Python rating system packages and [benchmarks/README.md](benchmarks/README.md) for the harness.
 
 ## License
 This package is licensed under a

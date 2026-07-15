@@ -183,8 +183,32 @@ class TimedPairDataset(PairDataset):
         return dataset
 
 
-def split_pair_dataset(dataset, test_fraction=0.2):
+def split_pair_dataset(dataset, test_fraction=0.2, align_to_period=False):
+    """Split a dataset chronologically into train and test halves.
+
+    Args:
+        dataset: the dataset to split.
+        test_fraction (float, optional): fraction of matchups in the test set. Defaults to 0.2.
+        align_to_period (bool, optional): move the split back to the start of the rating period
+            containing it, so the train set holds only complete periods and the test set starts on
+            a period boundary (requires time_steps; the test set becomes at least `test_fraction`
+            of the data). The default raw index split can land mid-period, in which case the
+            train -> test continuation of `fit_dataset` raises on the test half. Defaults to False.
+
+    Returns:
+        tuple: (train_dataset, test_dataset).
+    """
     split_idx = math.ceil(len(dataset) * (1.0 - test_fraction))
+    if align_to_period:
+        time_steps = getattr(dataset, 'time_steps', None)
+        if time_steps is None:
+            raise ValueError('align_to_period requires a dataset with time_steps (e.g. TimedPairDataset)')
+        if split_idx < len(dataset):
+            split_idx = int(np.searchsorted(time_steps, time_steps[split_idx], side='left'))
+        if split_idx == 0:
+            raise ValueError(
+                'align_to_period=True would leave the train set empty: the split falls inside the first rating period'
+            )
     train_dataset = dataset[:split_idx]
     test_dataset = dataset[split_idx:]
     print(f'Split into train_dataset of length {len(train_dataset)} and test_dataset of length {len(test_dataset)}')

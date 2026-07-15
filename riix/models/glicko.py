@@ -1,22 +1,28 @@
-"""Glicko"""
+"""Glicko rating system.
 
-import math
+Rating deviation is carried as a variance (RD^2) so the per-match update never
+needs a sqrt round-trip; RDs are only materialized on demand. Time-based RD
+inflation uses per-appearance elapsed periods precomputed in numpy (see
+`riix.core.base.compute_inflation_dt`), so the scan carry is just two float
+arrays.
+"""
+
 import numpy as np
-from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar, scatter_sum
-from riix.utils.constants import PI2, Q, Q2, Q2_3
+import jax
+import jax.numpy as jnp
+
+from riix.utils.constants import Q, Q2, Q2_3_OVER_PI2
+from riix.core.base import OnlineRatingSystem, _interleave_ratings
 
 
 class Glicko(OnlineRatingSystem):
-    """
-    Implements the original Glicko rating system, designed by Mark Glickman.
-
-    This rating system is an improvement over the Elo rating system, introducing the concept of rating
-    deviation and volatility to better account for the uncertainty in a player's true strength.
-    """
+    """Mark Glickman's Glicko rating system."""
 
     rating_dim = 2
     leaderboard_header = 'rating - (3*dev)'
+    uses_dt = True
+    initial_prev_time_step = -1
+    _predict_state_slots = (0, 1)  # (ratings, RD^2)
 
     def __init__(
         self,
@@ -24,133 +30,153 @@ class Glicko(OnlineRatingSystem):
         initial_rating: float = 1500.0,
         initial_rating_dev: float = 350.0,
         c: float = 63.2,
-        dtype=np.float64,
-        update_method='online',
-        # update_method='batched',
-        do_weird_prob=False,
+        update_method: str = 'online',
+        predict_mode: str = 'prequential',
+        dtype=jnp.float32,
     ):
         """
-        Initializes the Glicko rating system with the given parameters.
-
-        Parameters:
-            competitors (list): A list of competitors to be rated within the system.
+        Args:
             initial_rating (float, optional): The initial Glicko rating for new competitors. Defaults to 1500.0.
             initial_rating_dev (float, optional): The initial rating deviation for new competitors. Defaults to 350.0.
             c (float, optional): Constant used to adjust the rate of change of the rating deviation. Defaults to 63.2.
-            dtype (data-type, optional): The desired data-type for the ratings and deviations arrays. Defaults to np.float64.
-            update_method (str, optional): Method used for updating ratings ('online' or another specified method). Defaults to 'online'.
-            do_weird_prob (bool, optional): If set to True, applies an alternative probability calculation. Defaults to False.
+            update_method / predict_mode / dtype: see `OnlineRatingSystem.__init__`.
         """
-        super().__init__(competitors, update_method)
+        super().__init__(competitors, dtype=dtype, update_method=update_method, predict_mode=predict_mode)
+        self.initial_rating = initial_rating
         self.initial_rating_dev = initial_rating_dev
-        self.c2 = c**2.0
-        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-        self.rating_devs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating_dev
-        self.has_played = np.zeros(shape=self.num_competitors, dtype=np.bool_)
-        self.prev_time_step = -1
-        self.do_weird_prob = do_weird_prob
+        self.hparams = {
+            'c2': jnp.asarray(c**2.0, dtype=self.dtype),
+            'max_rd2': jnp.asarray(initial_rating_dev**2.0, dtype=self.dtype),
+            'q': jnp.asarray(Q, dtype=self.dtype),
+            'q2': jnp.asarray(Q2, dtype=self.dtype),
+            'tq2_pi2': jnp.asarray(Q2_3_OVER_PI2, dtype=self.dtype),
+        }
+
+    def _initial_state(self):
+        return (
+            jnp.full(self.num_competitors, self.initial_rating, dtype=self.dtype),
+            jnp.full(self.num_competitors, self.initial_rating_dev**2.0, dtype=self.dtype),  # RD^2
+        )
 
     @staticmethod
-    def g_vector(rating_dev):
-        """
-        Calculates the g function as part of the Glicko rating system.
+    def _step_core(state, x, hparams):
+        ratings, rd2s = state
+        matchup, outcome, dt = x
+        sign_flip = jnp.array([1.0, -1.0], dtype=ratings.dtype)
 
-        This function is used to scale the rating deviation, affecting the impact of a game outcome
-        as a function of the opponent's rating volatility.
+        r = ratings[matchup]
+        w = rd2s[matchup]
 
-        Parameters:
-            rating_dev (float): The rating deviation of an opponent.
+        # lazy RD inflation, capped at the initial RD; dt[:, 0] is the part
+        # accumulated before this rating period (visible to the prediction),
+        # dt[:, 1] is this period's inflation (applied only for the update)
+        w = jnp.minimum(w + hparams['c2'] * dt[:, 0], hparams['max_rd2'])
+        w_pred = w  # what a period-start prediction sees (see _gathered_probs)
 
-        Returns:
-            float: The calculated g function result, used to scale the expected score between players.
-        """
-        return 1.0 / np.sqrt(1.0 + (Q2_3 * np.square(rating_dev)) / PI2)
+        # matches v1 predict(): sigmoid(q * g(sqrt(rd1^2 + rd2^2)) * rating_diff)
+        g_comb = 1.0 / jnp.sqrt(1.0 + (w[0] + w[1]) * hparams['tq2_pi2'])
+        prob = jax.nn.sigmoid(hparams['q'] * g_comb * (r[0] - r[1]))
+
+        w = jnp.minimum(w + hparams['c2'] * dt[:, 1], hparams['max_rd2'])
+
+        # each competitor's update uses the opponent's g
+        g_opp = jnp.flip(1.0 / jnp.sqrt(1.0 + w * hparams['tq2_pi2']))
+        diffs = (r * sign_flip).sum() * sign_flip  # (r1 - r2, r2 - r1)
+        expected = jax.nn.sigmoid(hparams['q'] * g_opp * diffs)
+        d2_inv = hparams['q2'] * jnp.square(g_opp) * expected * (1.0 - expected)
+
+        outcomes_both = jnp.stack([outcome, 1.0 - outcome])
+        denom = (1.0 / w) + d2_inv
+        r_new = r + hparams['q'] * g_opp * (outcomes_both - expected) / denom
+
+        ratings = ratings.at[matchup].set(r_new)
+        rd2s = rd2s.at[matchup].set(1.0 / denom)
+        return (ratings, rd2s), prob, r, w_pred
 
     @staticmethod
-    def g_scalar(rating_dev):
-        return 1.0 / math.sqrt(1.0 + (Q2_3 * (rating_dev) ** 2.0) / PI2)
+    def _step(state, x, hparams):
+        new_state, prob, _, _ = Glicko._step_core(state, x, hparams)
+        return new_state, prob
 
-    # TODO should Glicko probs incorporate the dev increase?
-    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
-        """generate predictions"""
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        rating_diffs = ratings_1 - ratings_2
-        if self.do_weird_prob:
-            # not sure why they do it this way but it seems to work better than the "real" way
-            # https://github.com/McLeopold/PythonSkills/blob/95559262fbeaabc39cc5d698b93a6e43dc9b5e64/skills/glicko.py#L181
-            probs = 1.0 / (1.0 + np.power(10, -rating_diffs / (2.0 * self.initial_rating_dev)))
-        else:
-            rating_devs_1 = self.rating_devs[matchups[:, 0]]
-            rating_devs_2 = self.rating_devs[matchups[:, 1]]
-            combined_dev = self.g_vector(np.sqrt(np.square(rating_devs_1) + np.square(rating_devs_2)))
-            probs = sigmoid(Q * combined_dev * rating_diffs)
-        return probs
+    @staticmethod
+    def _step_period_start(state, x, hparams):
+        new_state, _, r, w_pred = Glicko._step_core(state, x, hparams)
+        return new_state, (r, w_pred)
 
-    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        means = self.ratings[matchups]
-        devs = self.rating_devs[matchups]
-        ratings = np.concatenate((means[..., None], devs[..., None]), axis=2).reshape(means.shape[0], -1)
-        return ratings
+    def _gathered_probs(self, gathered):
+        r, w = gathered  # (n, 2) pre-match ratings and (inflated, capped) RD^2
+        g_comb = 1.0 / jnp.sqrt(1.0 + (w[:, 0] + w[:, 1]) * self.hparams['tq2_pi2'])
+        return jax.nn.sigmoid(self.hparams['q'] * g_comb * (r[:, 0] - r[:, 1]))
 
-    def increase_rating_dev(self, time_step, matchups):
-        """called once per period to model the increase in variance over time"""
-        active_in_period = np.unique(matchups)
-        self.has_played[active_in_period] = True
-        time_delta = time_step - self.prev_time_step
-        self.rating_devs[self.has_played] = np.minimum(
-            np.sqrt(np.square(self.rating_devs[self.has_played]) + (time_delta * self.c2)), self.initial_rating_dev
-        )
-        self.prev_time_step = time_step
-        return active_in_period
+    def _gathered_ratings(self, gathered):
+        r, w = gathered
+        return _interleave_ratings((r, jnp.sqrt(w)))  # v1 columns are (rating, rating_dev)
 
-    def batched_update(self, matchups, outcomes, time_step, use_cache=False, **kwargs):
-        """apply one update based on all of the results of the rating period"""
-        active_in_period = self.increase_rating_dev(time_step, matchups)
+    def _initial_state_batched(self):
+        # the batched carry additionally tracks who has ever played, since idle
+        # inflation is applied eagerly per period rather than lazily per match
+        return (*self._initial_state(), jnp.zeros(self.num_competitors, dtype=bool))
 
-        ratings = self.ratings[matchups]
-        rating_diffs = ratings[:, 0] - ratings[:, 1]
-        g_rating_devs = self.g_vector(self.rating_devs[matchups])
-        probs_1 = sigmoid(Q * g_rating_devs[:, 1] * rating_diffs)
-        probs_2 = sigmoid(-1.0 * (Q * g_rating_devs[:, 0] * rating_diffs))
+    @staticmethod
+    def _batched_step(state, x, hparams):
+        """One padded rating period, mirroring v1 Glicko.batched_update."""
+        ratings, rd2s, has_played = state
+        matchups, outcomes, mask, time_delta = x
+        flat_idx = matchups.reshape(-1)
+        zeros = jnp.zeros(ratings.shape[0], dtype=ratings.dtype)
 
-        tmp = np.stack([probs_1 * (1.0 - probs_1), probs_2 * (1.0 - probs_2)]).T * np.square(g_rating_devs)[:, [1, 0]]
-        d2 = 1.0 / (scatter_sum(tmp, matchups, self.num_competitors)[active_in_period] * Q2)
+        r = ratings[matchups]  # (p, 2)
+        w_pre = rd2s[matchups]
 
-        outcomes = np.hstack([outcomes[:, None], 1.0 - outcomes[:, None]])
-        probs = np.hstack([probs_1[:, None], probs_2[:, None]])
+        # returned predictions, from period-start state (v1 calls predict() first)
+        g_comb = 1.0 / jnp.sqrt(1.0 + (w_pre[:, 0] + w_pre[:, 1]) * hparams['tq2_pi2'])
+        probs = jax.nn.sigmoid(hparams['q'] * g_comb * (r[:, 0] - r[:, 1]))
 
-        r_num = (
-            Q
-            * scatter_sum(g_rating_devs[:, [1, 0]] * (outcomes - probs), matchups, self.num_competitors)[
-                active_in_period
-            ]
-        )
-        r_denom = (1.0 / np.square(self.rating_devs[active_in_period])) + (1.0 / d2)
+        # capped inflation for everyone who has ever played, active included
+        # (unlike Glicko2's batched update there is no separate phi_star path);
+        # brand-new actives get the current period's single unit, not the global gap
+        active = zeros.at[flat_idx].max(jnp.repeat(mask, 2)) > 0.0
+        dt_eff = jnp.where(has_played, time_delta, jnp.minimum(time_delta, 1.0))
+        has_played = has_played | active
+        rd2s = jnp.where(has_played, jnp.minimum(rd2s + hparams['c2'] * dt_eff, hparams['max_rd2']), rd2s)
 
-        self.ratings[active_in_period] += r_num / r_denom
-        self.rating_devs[active_in_period] = np.sqrt(1.0 / r_denom)
+        w = rd2s[matchups]
+        g_opp = (1.0 / jnp.sqrt(1.0 + w * hparams['tq2_pi2']))[:, ::-1]
+        diffs = r - r[:, ::-1]  # (p, 2): (r1 - r2, r2 - r1)
+        expected = jax.nn.sigmoid(hparams['q'] * g_opp * diffs)
+        outcomes_both = jnp.stack([outcomes, 1.0 - outcomes], axis=1)
+        mask2 = mask[:, None]
 
-    def online_update(self, matchups, outcomes, time_step, **kwargs):
-        """treat the matchups in the rating period as if they were sequential"""
-        self.increase_rating_dev(time_step, matchups)
-        for (comp_1, comp_2), outcome in zip(matchups.tolist(), outcomes.tolist()):
-            rating_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            g_1 = self.g_scalar(self.rating_devs[comp_1])
-            g_2 = self.g_scalar(self.rating_devs[comp_2])
-            prob_1 = sigmoid_scalar(Q * g_2 * rating_diff)
-            prob_2 = sigmoid_scalar(-Q * g_1 * rating_diff)
-            d2_1 = 1.0 / (Q2 * prob_1 * (1.0 - prob_1) * (g_2 * g_2))
-            d2_2 = 1.0 / (Q2 * prob_2 * (1.0 - prob_2) * (g_1 * g_1))
-            r1_num = Q * g_2 * (outcome - prob_1)
-            r2_num = Q * g_1 * (1.0 - outcome - prob_2)
-            r1_denom = (1.0 / (self.rating_devs[comp_1] ** 2.0)) + (1.0 / d2_1)
-            r2_denom = (1.0 / (self.rating_devs[comp_2] ** 2.0)) + (1.0 / d2_2)
+        d2_inv_sum = zeros.at[flat_idx].add((jnp.square(g_opp) * expected * (1.0 - expected) * mask2).reshape(-1))
+        grads = zeros.at[flat_idx].add((g_opp * (outcomes_both - expected) * mask2).reshape(-1))
 
-            self.ratings[comp_1] += r1_num / r1_denom
-            self.ratings[comp_2] += r2_num / r2_denom
-            self.rating_devs[comp_1] = 1.0 / math.sqrt(r1_denom)
-            self.rating_devs[comp_2] = 1.0 / math.sqrt(r2_denom)
+        denom = (1.0 / rd2s) + hparams['q2'] * d2_inv_sum
+        ratings = ratings + jnp.where(active, hparams['q'] * grads / denom, 0.0)
+        rd2s = jnp.where(active, 1.0 / denom, rd2s)
+        return (ratings, rd2s, has_played), probs
+
+    def _apply_final_inflation(self, state, final_dt):
+        ratings, rd2s = state
+        rd2s = jnp.minimum(rd2s + self.hparams['c2'] * final_dt, self.hparams['max_rd2'])
+        return (ratings, rd2s)
+
+    @property
+    def ratings(self):
+        state = self.state if self.state is not None else self._initial_state()
+        return np.asarray(state[0])
+
+    @ratings.setter
+    def ratings(self, values):
+        self._set_state_slot(0, values)
+
+    @property
+    def rating_devs(self):
+        state = self.state if self.state is not None else self._initial_state()
+        return np.sqrt(np.asarray(state[1]))
+
+    @rating_devs.setter
+    def rating_devs(self, values):
+        self._set_state_slot(1, np.square(np.asarray(values)))  # carried as RD^2
 
     def leaderboard_ratings(self):
-        return self.ratings - (3.0 * self.rating_devs)
+        return self.ratings - 3.0 * self.rating_devs

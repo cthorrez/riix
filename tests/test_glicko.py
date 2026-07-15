@@ -4,8 +4,17 @@ example from: http://www.glicko.net/glicko/glicko.pdf
 
 import pytest
 import numpy as np
+import jax
 from riix.models.glicko import Glicko
 from riix.utils.data_utils import TimedPairDataset
+
+
+@pytest.fixture(scope='module', autouse=True)
+def enable_x64():
+    """Reference values need float64; jax needs the x64 flag for float64 arrays."""
+    jax.config.update('jax_enable_x64', True)
+    yield
+    jax.config.update('jax_enable_x64', False)
 
 
 def test_glicko2():
@@ -15,7 +24,7 @@ def test_glicko2():
     dataset = TimedPairDataset.init_from_arrays(
         time_steps=time_steps, matchups=matchups, outcomes=outcomes, competitors=[0, 1, 2, 3]
     )
-    model = Glicko(competitors=dataset.competitors, c=0.0, update_method='batched')
+    model = Glicko(competitors=dataset.competitors, c=0.0, update_method='batched', dtype=np.float64)
     model.ratings = np.array([1500.0, 1400.0, 1550.0, 1700.0])
     model.rating_devs = np.array([200.0, 30.0, 100.0, 300.0])
     model.fit_dataset(dataset)

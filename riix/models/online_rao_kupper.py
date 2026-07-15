@@ -1,106 +1,82 @@
 """The Online Rao Kupper rating system"""
 
-import numpy as np
 import math
+import numpy as np
+import jax
+import jax.numpy as jnp
+
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 
 class OnlineRaoKupper(OnlineRatingSystem):
-    """
-    Implements an online version of the Rao Kupper model
-    Performs stochastic gradient ascent on the log likelihood of the Rao Kupper model
-    https://encyclopediaofmath.org/wiki/Paired_comparison_model
-    https://papers.nips.cc/paper_files/paper/2015/hash/2a38a4a9316c49e5a833517c45d31070-Abstract.html
-    """
+    """Online Rao-Kupper."""
 
     rating_dim = 1
 
     def __init__(
         self,
         competitors: list,
-        initial_rating: float = 0.0,  # this does nothing
+        initial_rating: float = 0.0,
         theta: float = 2.0,
         step_size: float = 32.0,
         temperature: float = math.log(10.0) / 400.0,
         update_method: str = 'online',
-        dtype=np.float64,
+        predict_mode: str = 'prequential',
+        dtype=jnp.float32,
     ):
         """
-        Initializes the Elo rating system with the given parameters.
-
-        Parameters:
-            competitors (list): A list of competitors to be rated within the system.
+        Args:
             initial_rating (float, optional): The initial Elo rating for new competitors. Defaults to 1500.0.
+            theta (float, optional): Rao-Kupper draw threshold (1 makes draws impossible). Defaults to 2.0.
+            step_size (float, optional): gradient-ascent step size. Defaults to 32.0.
+            temperature (float, optional): rating-difference scale inside the model. Defaults to log(10)/400.
+            update_method / predict_mode / dtype: see `OnlineRatingSystem.__init__`.
         """
-        super().__init__(competitors, update_method)
-        self.theta = theta
-        self.log_theta = math.log(theta)
-        self.step_size = step_size
-        self.temperature = temperature
-        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
+        super().__init__(competitors, dtype=dtype, update_method=update_method, predict_mode=predict_mode)
+        self.initial_rating = initial_rating
+        self.hparams = {
+            'log_theta': jnp.asarray(math.log(theta), dtype=self.dtype),
+            'step_size': jnp.asarray(step_size, dtype=self.dtype),
+            'temperature': jnp.asarray(temperature, dtype=self.dtype),
+        }
 
-    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
-        """
-        Generates predictions for a series of matchups between competitors.
-        Parameters:
-            matchups (np.ndarray): A NumPy array of matchups, where each row represents a matchup
-                                    and contains two integers indicating the indices of the competitors
-                                    in the 'ratings' array.
-            time_step (int, optional): A time step at which the predictions are made. This parameter
-                                    is not used in the current implementation but can be utilized
-                                    for time-dependent predictions. Defaults to None.
-            set_cache (bool, optional): If True, caches the computed probabilities in the 'cache'
-                                        attribute under the key 'probs'. Defaults to False.
+    def _initial_state(self):
+        return (jnp.full(self.num_competitors, self.initial_rating, dtype=self.dtype),)
 
-        Returns:
-            np.ndarray: A NumPy array containing the predicted probabilities for the first competitor
-                        in each matchup winning against the second.
-        """
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        probs = sigmoid(self.temperature * (ratings_1 - ratings_2))
-        return probs
+    @staticmethod
+    def _step_core(state, x, hparams):
+        (ratings,) = state
+        matchup, outcome = x
+        r = ratings[matchup]
+        temp = hparams['temperature']
+        diff = r[0] - r[1]
+        # v1 quirk preserved: predictions ignore theta, gradients include it
+        prob = jax.nn.sigmoid(temp * diff)
+        p_1 = jax.nn.sigmoid(temp * (diff - hparams['log_theta']))
+        p_2 = jax.nn.sigmoid(temp * (-diff - hparams['log_theta']))
+        is_draw = outcome == 0.5
+        g_1 = jnp.where(is_draw, p_2 - p_1, outcome - p_1)
+        g_2 = jnp.where(is_draw, p_1 - p_2, (1.0 - outcome) - p_2)
+        ratings = ratings.at[matchup].add(hparams['step_size'] * jnp.stack([g_1, g_2]))
+        return (ratings,), prob, r
 
-    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        return self.ratings[matchups]
+    @staticmethod
+    def _step(state, x, hparams):
+        new_state, prob, _ = OnlineRaoKupper._step_core(state, x, hparams)
+        return new_state, prob
 
-    def batched_update(self, matchups, outcomes, use_cache):
-        """
-        Apply a single update based on all results of the rating period.
+    @staticmethod
+    def _step_period_start(state, x, hparams):
+        new_state, _, r = OnlineRaoKupper._step_core(state, x, hparams)
+        return new_state, r
 
-        Parameters:
-            matchups: Matchup information for the rating period.
-            outcomes: Results of the matchups.
-            use_cache: Flag to use cached probabilities or calculate anew.
-        """
-        raise NotImplementedError
+    def _gathered_probs(self, gathered):
+        (r,) = gathered  # (n, 2) pre-match ratings
+        return jax.nn.sigmoid(self.hparams['temperature'] * (r[:, 0] - r[:, 1]))
 
-    def online_update(self, matchups, outcomes, **kwargs):
-        """
-        Treats the matchups in the rating period as sequential events.
-
-        Parameters:
-            matchups: Sequential matchups in the rating period.
-            outcomes: Results of each matchup.
-            **kwargs: Additional parameters (not used).
-        """
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            r_1 = self.ratings[comp_1]
-            r_2 = self.ratings[comp_2]
-            p_1 = sigmoid_scalar(self.temperature * (r_1 - r_2 - self.log_theta))
-            p_2 = sigmoid_scalar(self.temperature * (r_2 - r_1 - self.log_theta))
-            if outcomes[idx] != 0.5:
-                g_1 = outcomes[idx] - p_1
-                g_2 = (1.0 - outcomes[idx]) - p_2
-            else:  # outcomes[idx] == 0.5
-                # https://www.wolframalpha.com/input?i=derivative+of+log+%28%28exp%28a%29+*+exp%28b%29+*+%28theta%5E2+-+1%29%29+%2F+%28%28exp%28a%29+%2B+theta+*+exp%28b%29%29*%28exp%28b%29+%2B+theta*exp%28a%29%29%29%29+wrt+a
-                g_1 = p_2 - p_1
-                g_2 = p_1 - p_2
-
-            self.ratings[comp_1] += self.step_size * g_1
-            self.ratings[comp_2] += self.step_size * g_2
+    @property
+    def ratings(self):
+        return np.asarray(self.state[0])
 
     def leaderboard_ratings(self):
         return self.ratings

@@ -1,31 +1,30 @@
 # Roadmap
 
-Working list of improvements, roughly ordered within each horizon. (Started July 2026.)
+Working list of improvements, roughly ordered within each horizon. (Started July 2026; rewritten after the jax migration landed, July 2026.)
+
+## Done (July 2026)
+
+- [x] **Base-class refactor**: `RatingSystem` → `OnlineRatingSystem`/`StaticRatingSystem` split, generic `print_leaderboard`, normalized `FitResult` returns
+- [x] **Benchmark suite** (`benchmarks/`): internal timing with branch A/B comparison (`bench.py`, `ab.py`), cross-package speed (`external.py`) and accuracy (`accuracy.py`) comparisons, published in `benchmarks/RESULTS.md`
+- [x] **Better hyperparameter search**: `random_search` and `optuna_search` (optional extra) alongside `grid_search`, shared distribution specs, `verbose=` progress
+- [x] **The jax migration (0.1.0)**: every rating system rewritten on a jit + `lax.scan` backend — one compiled scan per fit, traced hyperparameters so sweeps compile once, `predict_mode='prequential'`/`'period_start'`, padded-period `update_method='batched'`, exact train → test continuation — plus the v1 quirk fixes (corrected TrueSkill/WengLin draw moments, first-appearance inflation, capped batched phi_star, `get_pre_match_ratings` everywhere meaningful, period-aligned dataset splitting). History and decisions in `MIGRATION.md`, user-facing summary in `CHANGELOG.md`
+- [x] ~~**Two-team competitions**~~ — descoped: riix stays strictly 1v1. A "competitor" can already be a whole team rated as a single unit; per-player ratings within teams are out of scope
 
 ## Short term
 
-- [x] **Finish the static/non-dynamic rating system inheritance refactor** (`RatingSystem` → `OnlineRatingSystem`/`StaticRatingSystem` split in `core/base.py`; static systems fit once on the whole dataset and share the `fit_dataset` contract so `riix.eval` works with both — July 2026)
-- [x] **Deduplicate model boilerplate into the base class** as part of that refactor:
-  - `print_leaderboard` is now a generic base implementation over an overridable `leaderboard_ratings()` array + `leaderboard_header` (July 2026)
-  - The `update_method` dispatch block is hoisted into `OnlineRatingSystem.__init__` (July 2026)
-- [x] **Normalize `fit_batch`/`fit_dataset` return values.** Both always return a `FitResult` NamedTuple with `probs`/`ratings` fields that are None unless requested (July 2026)
-- [x] **`models/__init__.py` cleanup**: lazy re-exports via module `__getattr__`, accurate roster in the docstring (July 2026)
-- [x] **More known-value tests**: Elo vs hand-computed classic arithmetic, Weng-Lin BT vs openskill.py 6.2.0; plus batched==online regression tests for the fixed OnlineDiscDecomp/EloMentum batched updates (July 2026)
+- [ ] **Release 0.1.0** to PyPI (changelog is finalized; verify the pdoc CI build renders the model docs on merge)
+- [ ] **Test/lint CI workflow** with a Python-version matrix matching `requires-python` (≥3.11)
+- [ ] **Type hints + `py.typed`** for the public API
 
 ## Medium term
 
-- [ ] **Two-team competitions** (promised in the README; >2 teams explicitly out of scope).
-- [ ] **Benchmark suite** (`benchmarks/`): timing + accuracy comparisons across riix models and vs other packages (openskill.py, trueskill, etc.). Speed is the package's core pitch — measure and publish it.
-  - [x] Internal speed benchmarks with branch A/B comparison (`benchmarks/bench.py`, `ab.py`, `compare.py` — July 2026)
-  - [ ] Cross-package comparisons and accuracy benchmarks
-- [ ] **Better hyperparameter search**: random search / Optuna (optional dep) alongside `grid_search`; progress reporting for long sweeps.
-- [ ] **Type hints + `py.typed`** for the public API.
-- [ ] **Test/lint CI workflow** (deliberately deferred for now) with a Python-version matrix matching `requires-python`.
-- [ ] **Docs pass**: quickstart page, per-model docstrings with paper links, document the dataset format contract (sorted-by-time, outcome encoding).
+- [ ] **`vmap` sweep API**: vmap the scan over a hyperparameter axis inside one jit — the prototype in `benchmarks/sweep.py --vmap` is ~4x faster than a sequential warm sweep on CPU (~10ms per Elo configuration). Promote to a public API if sweeps become a bottleneck; likely bigger wins on GPU
+- [ ] **GPU benchmarks**: the backend runs on GPU by installing `jax[cuda12]`, but nothing is measured yet — benchmark large-dataset fits and vmap sweeps
+- [ ] **Docs pass**: document the dataset format contract (chronologically sorted, win=1.0/draw=0.5/loss=0.0, fixed competitor set) and add paper links to the remaining model docstrings
+- [ ] **New rating systems**: Whole History Rating (WHR), decayed-history Elo variants, other batch/offline systems enabled by the static-system split
 
 ## Long term
 
-- [ ] **API stabilization → 0.1.0**: settle the base-class contract (predict/update/fit signatures, caching), then commit to semver.
-- [ ] **New rating systems**: Whole History Rating (WHR), decayed-history Elo variants, other batch/offline systems enabled by the static-system refactor.
-- [ ] **Release automation**: PyPI trusted publishing (OIDC), single gated release workflow (test → build once → TestPyPI → PyPI).
-- [ ] **Published benchmark study** (blog post or short paper) using the benchmark suite; doubles as marketing for the package.
+- [ ] **Semver commitment** once 0.1.x has settled the post-migration API surface
+- [ ] **Release automation**: PyPI trusted publishing (OIDC), single gated release workflow (test → build once → TestPyPI → PyPI)
+- [ ] **Published benchmark study** (blog post or short paper) using the benchmark suite; the EsportsBench sweep replication (2-12x per rating system at realistic sweep sizes) is a ready-made case study

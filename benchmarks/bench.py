@@ -5,10 +5,16 @@ Runs every discovered model over a grid of (num_matchups, num_competitors)
 configs and reports fit_dataset wall time. Results can be written to JSON
 for comparison across branches with compare.py / ab.py.
 
+Models are auto-discovered from riix/models/. jax dispatches asynchronously,
+so timing blocks on the fitted state; the default --warmup 1 keeps one-time
+jit compilation out of the timed runs (--warmup 0 shows cold timings, compile
+included).
+
 Usage:
     uv run python benchmarks/bench.py
     uv run python benchmarks/bench.py --num-matchups 1000,10000,100000 --num-competitors 100,1000 -o results.json
     uv run python benchmarks/bench.py --models Elo,Glicko --repeats 5
+    uv run python benchmarks/bench.py --models Glicko2 --model-kwargs '{"update_method": "batched"}'
 """
 
 import argparse
@@ -22,11 +28,10 @@ import subprocess
 import time
 
 import riix.models
-from riix.core.base import OnlineRatingSystem
 from riix.utils import generate_pair_data
 from riix.utils.data_utils import TimedPairDataset
 
-# models whose constructors require more than `competitors`
+# models whose constructors require more than `competitors`, keyed by class name
 EXTRA_KWARGS = {
     'BaselineRatingSystem': {'mode': 'win_rate'},
 }
@@ -34,6 +39,13 @@ EXCLUDED = {'Template'}
 
 
 def discover_model_classes():
+    """name -> class for every rating system in riix.models (plus riix.v2 as 'v2.<Name>' on
+    pre-cutover checkouts, so ab.py comparisons against old refs keep working).
+
+    Discovery is structural (a class defined in the module with a fit_dataset method) rather than
+    base-class based, so the same script runs on both sides of an ab.py comparison even across
+    the jax-migration cutover commit, where the base class changed and riix.v2 was retired.
+    """
     classes = {}
     for mod_info in pkgutil.iter_modules(riix.models.__path__):
         try:
@@ -41,8 +53,16 @@ def discover_model_classes():
         except ImportError:
             continue
         for name, obj in inspect.getmembers(module, inspect.isclass):
-            if issubclass(obj, OnlineRatingSystem) and obj.__module__ == module.__name__ and name not in EXCLUDED:
+            if obj.__module__ == module.__name__ and name not in EXCLUDED and hasattr(obj, 'fit_dataset'):
                 classes[name] = obj
+    try:
+        v2 = importlib.import_module('riix.v2')
+    except ImportError:  # post-cutover checkout, or jax not installed on the old ref
+        return classes
+    for name in getattr(v2, '__all__', []):  # empty on post-cutover checkouts (namespace dir)
+        obj = getattr(v2, name)
+        if inspect.isclass(obj):  # __all__ also lists the base submodule for pdoc
+            classes[f'v2.{name}'] = obj
     return classes
 
 
@@ -63,6 +83,17 @@ def make_dataset(num_matchups, num_competitors, num_rating_periods, seed):
     )
 
 
+def block_on_state(state):
+    """Wait for jax's async dispatch to finish so fit timings are real; no-op for numpy models."""
+    if isinstance(state, (tuple, list)):
+        for item in state:
+            block_on_state(item)
+    else:
+        block = getattr(state, 'block_until_ready', None)
+        if block is not None:
+            block()
+
+
 def time_fit(model_class, kwargs, dataset, repeats, warmup):
     """Time fit_dataset on fresh model instances. Model construction is not timed."""
     times = []
@@ -70,6 +101,7 @@ def time_fit(model_class, kwargs, dataset, repeats, warmup):
         model = model_class(competitors=dataset.competitors, **kwargs)
         start = time.perf_counter()
         model.fit_dataset(dataset)
+        block_on_state(getattr(model, 'state', None))
         elapsed = time.perf_counter() - start
         if i >= warmup:
             times.append(elapsed)
@@ -102,6 +134,13 @@ def main():
     parser.add_argument('--repeats', type=int, default=3, help='timed runs per config, median is reported')
     parser.add_argument('--warmup', type=int, default=1, help='untimed runs per config (JIT compilation, caches)')
     parser.add_argument('--models', type=str, default=None, help='comma separated substrings to filter model names')
+    parser.add_argument(
+        '--model-kwargs',
+        type=json.loads,
+        default={},
+        help='JSON dict of constructor kwargs applied to every selected model, '
+        'e.g. \'{"update_method": "batched"}\' (combine with --models)',
+    )
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('-o', '--output', type=str, default=None, help='write results to this JSON file')
     args = parser.parse_args()
@@ -118,7 +157,7 @@ def main():
         for num_competitors in args.num_competitors:
             dataset = make_dataset(num_matchups, num_competitors, args.rating_periods, args.seed)
             for name, model_class in sorted(model_classes.items()):
-                kwargs = EXTRA_KWARGS.get(name, {})
+                kwargs = {**EXTRA_KWARGS.get(model_class.__name__, {}), **args.model_kwargs}
                 times = time_fit(model_class, kwargs, dataset, args.repeats, args.warmup)
                 median = statistics.median(times)
                 results.append(

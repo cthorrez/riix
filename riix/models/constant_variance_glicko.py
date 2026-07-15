@@ -1,17 +1,21 @@
-"""
-Constant Variance Glicko
+"""Constant Variance Glicko
 Martin Ingram 2021
-https://www.researchgate.net/publication/348511584_How_to_extend_Elo_a_Bayesian_perspective
-"""
+https://www.researchgate.net/publication/348511584_How_to_extend_Elo_a_Bayesian_perspective"""
 
 import math
 import numpy as np
+import jax
+import jax.numpy as jnp
+
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, sigmoid_scalar
 
 
 class ConstantVarianceGlicko(OnlineRatingSystem):
-    """Glicko but all competitors have equal and unchanging variance"""
+    """Constant Variance Glicko.
+
+    All competitors share an equal, unchanging rating deviation, so unlike
+    Glicko there is no variance state and no time-based inflation pre-pass.
+    """
 
     rating_dim = 1
 
@@ -22,61 +26,57 @@ class ConstantVarianceGlicko(OnlineRatingSystem):
         rd: float = 81.7,  # for tennis Ingram found this should be 81.7
         b: float = math.log(10.0) / 400.0,
         update_method: str = 'online',
-        dtype=np.float64,
+        predict_mode: str = 'prequential',
+        dtype=jnp.float32,
     ):
-        """Initialize the rating system"""
-        super().__init__(competitors, update_method)
-        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-        self.rd = rd
-        self.b = b
-        self.b2 = b**2.0
-
-        # a whole bunch of stuff is constant :)
-        self.rd2_inv = 1.0 / (rd**2.0)
-        self.g_rd = 1.0 / math.sqrt(1.0 + (3.0 * (self.b2) * (rd**2.0)) / (math.pi**2.0))
-        self.b_g_rd = b * self.g_rd
-        self.b2_g_rd2 = self.b_g_rd**2.0
-
-    def predict(self, matchups: np.ndarray, time_step: int = None, set_cache: bool = False):
         """
-        Generates predictions for a series of matchups between competitors.
+        Args:
+            initial_rating (float, optional): initial rating for every competitor. Defaults to 1500.0.
+            rd (float, optional): the shared, constant rating deviation used for every competitor (81.7 per Ingram for tennis). Defaults to 81.7.
+            b (float, optional): rating-difference scale inside the sigmoid. Defaults to log(10)/400.
+            update_method / predict_mode / dtype: see `OnlineRatingSystem.__init__`.
         """
-        ratings = self.ratings[matchups]
-        return sigmoid(self.b_g_rd * (ratings[:, 0] - ratings[:, 1]))
+        super().__init__(competitors, dtype=dtype, update_method=update_method, predict_mode=predict_mode)
+        self.initial_rating = initial_rating
+        g_rd = 1.0 / math.sqrt(1.0 + (3.0 * (b**2.0) * (rd**2.0)) / (math.pi**2.0))
+        self.hparams = {
+            'rd2_inv': jnp.asarray(1.0 / (rd**2.0), dtype=self.dtype),
+            'b_g_rd': jnp.asarray(b * g_rd, dtype=self.dtype),
+        }
 
-    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        raise NotImplementedError
+    def _initial_state(self):
+        return (jnp.full(self.num_competitors, self.initial_rating, dtype=self.dtype),)
 
-    def batched_update(self, matchups, outcomes, use_cache, **kwargs):
-        """
-        Apply a single update based on all results of the rating period.
+    @staticmethod
+    def _step_core(state, x, hparams):
+        (ratings,) = state
+        matchup, outcome = x
+        r = ratings[matchup]
+        b_g_rd = hparams['b_g_rd']
+        prob = jax.nn.sigmoid(b_g_rd * (r[0] - r[1]))
+        d_squared_inv = b_g_rd * b_g_rd * prob * (1.0 - prob)
+        k = b_g_rd / (hparams['rd2_inv'] + d_squared_inv)
+        delta = k * (outcome - prob)
+        ratings = ratings.at[matchup].add(jnp.stack([delta, -delta]))
+        return (ratings,), prob, r
 
-        Parameters:
-            matchups: Matchup information for the rating period.
-            outcomes: Results of the matchups.
-        """
-        raise NotImplementedError
+    @staticmethod
+    def _step(state, x, hparams):
+        new_state, prob, _ = ConstantVarianceGlicko._step_core(state, x, hparams)
+        return new_state, prob
 
-    def online_update(self, matchups, outcomes, **kwargs):
-        """
-        Treats the matchups in the rating period as sequential events.
+    @staticmethod
+    def _step_period_start(state, x, hparams):
+        new_state, _, r = ConstantVarianceGlicko._step_core(state, x, hparams)
+        return new_state, r
 
-        Parameters:
-            matchups: Sequential matchups in the rating period.
-            outcomes: Results of each matchup.
-        """
-        # somebody on twitter told me .self was slow so we are getting these once first
-        rd2_inv = self.rd2_inv
-        b_g_rd = self.b_g_rd
-        b2_g_rd2 = self.b2_g_rd2
-        for matchup, outcome in zip(matchups, outcomes):
-            r_1, r_2 = self.ratings[matchup]
-            prob = sigmoid_scalar(b_g_rd * (r_1 - r_2))
-            d_squared_inv = b2_g_rd2 * prob * (1.0 - prob)
-            k = b_g_rd / (rd2_inv + d_squared_inv)
-            delta = k * (outcome - prob)
-            self.ratings[matchup[0]] += delta
-            self.ratings[matchup[1]] -= delta
+    def _gathered_probs(self, gathered):
+        (r,) = gathered  # (n, 2) pre-match ratings
+        return jax.nn.sigmoid(self.hparams['b_g_rd'] * (r[:, 0] - r[:, 1]))
+
+    @property
+    def ratings(self):
+        return np.asarray(self.state[0])
 
     def leaderboard_ratings(self):
         return self.ratings

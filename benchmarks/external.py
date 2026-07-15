@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #     "riix",
 #     "trueskill>=0.4.5",
@@ -21,10 +21,11 @@ Each task pairs a riix model with external implementations of the same
 algorithm. All implementations process the identical synthetic match history:
 riix via fit_dataset over rating periods, the external packages via their
 idiomatic one-match-at-a-time update loop. riix appears twice per task —
-update_method='online' matches the external loops' sequential semantics and is
-the speedup baseline, 'batched' is riix's vectorized one-update-per-period
-mode. Timing covers rating initialization plus processing every matchup;
-dataset generation is untimed.
+update_method='online' (per-match sequential updates, the same semantics as
+the external loops, and the speedup baseline) and 'batched' (one vectorized
+update per rating period). Timing covers rating initialization plus processing
+every matchup; dataset generation is untimed, and the default --warmup keeps
+riix's one-time jit compilation out of the timed runs.
 
 This measures fitting speed only, with each library's default hyperparameters.
 It says nothing about predictive accuracy.
@@ -51,7 +52,7 @@ with warnings.catch_warnings():
     from glicko2 import Player as Glicko2Player
     from openskill.models import BradleyTerryFull, ThurstoneMostellerFull
 
-from bench import git_meta, int_list, make_dataset
+from bench import block_on_state, git_meta, int_list, make_dataset
 
 from riix.models.elo import Elo
 from riix.models.glicko import Glicko
@@ -86,6 +87,7 @@ def riix_fit(model_class, **kwargs):
     def fit(data):
         model = model_class(competitors=data.dataset.competitors, **kwargs)
         model.fit_dataset(data.dataset)
+        block_on_state(getattr(model, 'state', None))  # jax dispatch is async; numpy models no-op
 
     return fit
 
@@ -145,8 +147,8 @@ def elote_fit(competitor_class, **kwargs):
 
 # task -> list of (implementation label, fit function); the first entry is the speedup baseline.
 # Each riix model appears twice: 'online' processes matchups sequentially exactly like the external
-# per-match loops, 'batched' applies one vectorized update per rating period (riix's headline mode,
-# with slightly different update semantics within a period).
+# per-match loops, 'batched' applies one vectorized update per rating period (with slightly
+# different update semantics within a period).
 TASKS = {
     'elo': [
         ('riix.Elo(online)', riix_fit(Elo, update_method='online')),

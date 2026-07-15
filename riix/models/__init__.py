@@ -1,8 +1,7 @@
 """
 Implementations of online rating systems for paired comparison data.
-One rating system per module, re-exported here lazily so that
-`from riix.models import Elo` works without importing every model module
-(or optional dependencies like jax, which only AutogradRatingSystem needs).
+One rating system per module, re-exported here so that
+`from riix.models import Elo` works.
 
 Included rating systems:
 
@@ -15,7 +14,6 @@ Included rating systems:
 - `Glicko2`: Mark Glickman's Glicko 2 rating system with volatility.
 - `TrueSkill`: Microsoft's Bayesian TrueSkill rating system.
 - `WengLin`: the Weng-Lin Bayesian online rating system (Bradley-Terry or Thurstone-Mosteller model).
-- `WengLinThurstoneMosteller`: DEPRECATED, use WengLin with model='tm'.
 - `VSKF`: vector covariance simplified Kalman filter.
 - `vElo`: variance incorporated Elo.
 - `Melo`: multidimensional Elo for partially cyclic (rock-paper-scissors-like) games.
@@ -24,44 +22,48 @@ Included rating systems:
 - `onlineMarkov`: online Markov method.
 - `TemporalMassey`: temporalized Massey method.
 - `Yuksel2024`: Cem Yuksel's 2024 matchmaking rating system.
-- `AutogradRatingSystem`: gradient updates on arbitrary differentiable likelihoods (requires the jax extra).
+- `AutogradRatingSystem`: gradient updates on arbitrary differentiable likelihoods.
 - `BaselineRatingSystem`: win rate / appearance / random baselines.
 """
 
-import importlib
+from riix.models.autograd_rating_system import AutogradRatingSystem
+from riix.models.baselines import BaselineRatingSystem
+from riix.models.constant_variance_glicko import ConstantVarianceGlicko
+from riix.models.elo import Elo
+from riix.models.elo_davidson import EloDavidson
+from riix.models.elomentum import EloMentum
+from riix.models.gen_elo import GenElo
+from riix.models.glicko import Glicko
+from riix.models.glicko2 import Glicko2
+from riix.models.iterative_markov import onlineMarkov
+from riix.models.melo import Melo
+from riix.models.online_disc_decomp import OnlineDiscDecomp
+from riix.models.online_rao_kupper import OnlineRaoKupper
+from riix.models.skf import VSKF
+from riix.models.temporal_massey import TemporalMassey
+from riix.models.trueskill import TrueSkill
+from riix.models.velo import vElo
+from riix.models.weng_lin import WengLin
+from riix.models.yuksel_2024 import Yuksel2024
 
-_MODEL_LOCATIONS = {
-    'AutogradRatingSystem': 'autograd_rating_system',
-    'BaselineRatingSystem': 'baselines',
-    'ConstantVarianceGlicko': 'constant_variance_glicko',
-    'Elo': 'elo',
-    'EloDavidson': 'elo_davidson',
-    'EloMentum': 'elomentum',
-    'GenElo': 'gen_elo',
-    'Glicko': 'glicko',
-    'Glicko2': 'glicko2',
-    'Melo': 'melo',
-    'OnlineDiscDecomp': 'online_disc_decomp',
-    'OnlineRaoKupper': 'online_rao_kupper',
-    'TemporalMassey': 'temporal_massey',
-    'TrueSkill': 'trueskill',
-    'VSKF': 'skf',
-    'WengLin': 'weng_lin',
-    'WengLinThurstoneMosteller': 'weng_lin_thurstone_mosteller',
-    'Yuksel2024': 'yuksel_2024',
-    'onlineMarkov': 'iterative_markov',
-    'vElo': 'velo',
-}
-
-__all__ = sorted(_MODEL_LOCATIONS)
-
-
-def __getattr__(name):
-    if name in _MODEL_LOCATIONS:
-        module = importlib.import_module(f'.{_MODEL_LOCATIONS[name]}', __name__)
-        return getattr(module, name)
-    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
-
-
-def __dir__():
-    return sorted(list(globals()) + __all__)
+__all__ = [
+    'AutogradRatingSystem',
+    'BaselineRatingSystem',
+    'ConstantVarianceGlicko',
+    'Elo',
+    'EloDavidson',
+    'EloMentum',
+    'GenElo',
+    'Glicko',
+    'Glicko2',
+    'Melo',
+    'OnlineDiscDecomp',
+    'OnlineRaoKupper',
+    'TemporalMassey',
+    'TrueSkill',
+    'VSKF',
+    'WengLin',
+    'Yuksel2024',
+    'onlineMarkov',
+    'vElo',
+]

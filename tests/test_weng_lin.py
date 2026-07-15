@@ -14,9 +14,20 @@ Thurstone-Mosteller draw-margin handling differs slightly, and the TM-family mat
 already covered by the TrueSkill known-value test.
 """
 
+import pytest
 import numpy as np
+import jax
 from riix.models.weng_lin import WengLin
 from riix.utils.data_utils import TimedPairDataset
+
+
+@pytest.fixture(scope='module', autouse=True)
+def enable_x64():
+    """Reference values need float64; jax needs the x64 flag for float64 arrays."""
+    jax.config.update('jax_enable_x64', True)
+    yield
+    jax.config.update('jax_enable_x64', False)
+
 
 OPENSKILL_MUS = [30.6175154257, 21.3151811589, 27.6123002403, 20.4856050247]
 OPENSKILL_SIGMAS = [7.1963613475, 7.3888666455, 7.5770615869, 7.3518467785]
@@ -42,6 +53,7 @@ def test_weng_lin_bradley_terry_matches_openskill():
         draw_probability=0.0,
         model='bt',
         update_method='online',
+        dtype=np.float64,
     )
     model.fit_dataset(dataset)
 

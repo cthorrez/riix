@@ -1,131 +1,154 @@
-"""Multidimensional Elo"""
+"""Multidimensional Elo (mElo) rating system.
+
+Carries (ratings, c): the scalar Elo ratings plus each competitor's 2k-dim
+embedding row of the C matrix, whose antisymmetric pairing through omega adds a
+non-transitive (rock-paper-scissors) term to the Elo score difference. No time
+dynamics.
+
+v1 quirk preserved: the online and batched updates use gradients of *opposite
+sign* for the embedding term — online moves c_1 along omega @ c_2 while batched
+moves it along c_2 @ omega = -(omega @ c_2).
+"""
 
 import math
 import numpy as np
+import jax
+import jax.numpy as jnp
+
 from riix.core.base import OnlineRatingSystem
-from riix.models.elo import Elo
-from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 def generate_orthogonal_matrix(d, k):
-    # Constraint check
     if d > k + 1:
         raise ValueError('d must be less than or equal to k + 1')
-
-    # Initialize the matrix with zeros
     matrix = np.zeros((d, k))
-
-    # Generate a base pattern
     base_pattern = np.array([1.0, -1.0] * (k // 2) + [1.0] * (k % 2))
-
-    # Fill the first d-1 rows
     for i in range(d - 1):
-        shift = i % k  # Calculate the shift for the pattern
-        matrix[i] = np.roll(base_pattern, shift)
-
-    # Fill the d-th row
+        matrix[i] = np.roll(base_pattern, i % k)
     matrix[-1] = -np.sum(matrix[:-1], axis=0)
     return matrix
 
 
-class Melo(Elo):
-    """Multidimensional Elo rating system, (good for rock paper scissors problems)"""
+class Melo(OnlineRatingSystem):
+    """Multidimensional Elo."""
 
     rating_dim = 1
+    _predict_state_slots = (0, 1)  # (ratings, C-matrix rows); ratings columns use only the former
 
     def __init__(
         self,
         competitors: list,
         initial_rating: float = 1500.0,
-        dimension: int = 1,  # this is the k in melo_2k, not sure why they had to use that letter when it's already used in Elo smh
-        eta_r: float = 32.0,  # this is the normal elo k factor
-        eta_c: float = 0.125,  # 1 is bad: https://dclaz.github.io/mELO/articles/03_noise.html#simulations-1
+        dimension: int = 1,  # the k in melo_2k
+        eta_r: float = 32.0,  # the normal elo k factor
+        eta_c: float = 0.125,
         alpha: float = math.log(10.0) / 400.0,
         update_method: str = 'online',
-        dtype=np.float64,
+        predict_mode: str = 'prequential',
+        dtype=jnp.float32,
     ):
-        OnlineRatingSystem.__init__(self, competitors, update_method)
-        self.eta_r = eta_r
-        self.eta_c = eta_c
-        self.alpha = alpha
-        self.ratings = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_rating
-        two_k = 2 * dimension
-        self.c = generate_orthogonal_matrix(d=two_k, k=self.num_competitors).T  # / 10.0
+        """
+        Args:
+            initial_rating (float, optional): initial rating for every competitor. Defaults to 1500.0.
+            dimension (int, optional): the k of mElo_2k — number of 2-d cyclic embedding pairs capturing non-transitive interactions. Defaults to 1.
+            eta_r (float, optional): learning rate of the Elo-like rating component. Defaults to 32.0.
+            eta_c (float, optional): learning rate of the cyclic embedding matrix. Defaults to 0.125.
+            alpha (float, optional): rating-difference scale inside the sigmoid. Defaults to log(10)/400.
+            update_method / predict_mode / dtype: see `OnlineRatingSystem.__init__`.
+        """
+        super().__init__(competitors, dtype=dtype, update_method=update_method, predict_mode=predict_mode)
+        self.initial_rating = initial_rating
+        self.two_k = 2 * dimension
+        self.initial_c = generate_orthogonal_matrix(d=self.two_k, k=self.num_competitors).T
 
-        # rng = np.random.default_rng(42)
-        # self.c = rng.uniform(low=-1.0, high=1.0, size=(num_competitors, two_k))
+        omega = np.zeros((self.two_k, self.two_k))
+        omega[np.arange(0, self.two_k - 1, 2), np.arange(1, self.two_k, 2)] = 1.0
+        omega[np.arange(1, self.two_k, 2), np.arange(0, self.two_k - 1, 2)] = -1.0
 
-        self.omega = np.zeros((two_k, two_k), dtype=np.int32)
-        # Set every other off-diagonal element to 1 or -1
-        self.omega[np.arange(0, two_k - 1, 2), np.arange(1, two_k, 2)] = 1  # Upper off diagonal
-        self.omega[np.arange(1, two_k, 2), np.arange(0, two_k - 1, 2)] = -1  # Lower off diagonal
+        self.hparams = {
+            'alpha': jnp.asarray(alpha, dtype=self.dtype),
+            'eta_r': jnp.asarray(eta_r, dtype=self.dtype),
+            'eta_c': jnp.asarray(eta_c, dtype=self.dtype),
+            'omega': jnp.asarray(omega, dtype=self.dtype),
+        }
 
-        self.cache = {'probs': None, 'c_1_times_omega': None}
+    def _initial_state(self):
+        return (
+            jnp.full(self.num_competitors, self.initial_rating, dtype=self.dtype),
+            jnp.asarray(self.initial_c, dtype=self.dtype),
+        )
 
-    def get_pre_match_ratings(self, matchups, **kwargs):
-        return self.ratings[matchups]
+    @staticmethod
+    def _step_core(state, x, hparams):
+        ratings, cs = state
+        matchup, outcome = x
+        sign_flip = jnp.array([1.0, -1.0], dtype=ratings.dtype)
 
-    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
-        """generate predictions"""
-        ratings_1 = self.ratings[matchups[:, 0]]
-        ratings_2 = self.ratings[matchups[:, 1]]
-        c_1 = self.c[matchups[:, 0], None, :]  # [bs, 1, 2k]
-        c_2 = self.c[matchups[:, 1], :, None]  # [bs, 2k, 1]
-        elo_diff = ratings_1 - ratings_2
-        c_1_times_omega = np.matmul(c_1, self.omega)
-        melo_diff = np.matmul(c_1_times_omega, c_2)[:, 0, 0]
-        probs = sigmoid(self.alpha * (elo_diff + melo_diff))
-        if set_cache:
-            self.cache['probs'] = probs
-            self.cache['c_1_times_omega'] = c_1_times_omega.squeeze(axis=1)
+        r = ratings[matchup]  # (2,)
+        c = cs[matchup]  # (2, 2k)
+        omega = hparams['omega']
 
-        return probs
+        omega_c2 = omega @ c[1]
+        melo_diff = c[0] @ omega_c2
+        prob = jax.nn.sigmoid(hparams['alpha'] * (r[0] - r[1] + melo_diff))
+        delta = outcome - prob
 
-    def batched_update(self, matchups, outcomes, time_step=None, use_cache=False):
-        """apply one update based on all of the results of the rating period"""
-        active_in_period = np.unique(matchups)
+        new_r = r + hparams['eta_r'] * delta * sign_flip
+        omega_c1 = omega @ c[0]
+        new_c = c + hparams['eta_c'] * delta * jnp.stack([omega_c2, -omega_c1])
 
-        c_1 = self.c[matchups[:, 0], :]  # [bs, 2k]
-        c_2 = self.c[matchups[:, 1], :]  # [bs, 2k]
+        ratings = ratings.at[matchup].set(new_r)
+        cs = cs.at[matchup].set(new_c)
+        return (ratings, cs), prob, r, c
 
-        if use_cache:
-            probs = self.cache['probs']
-            dp_dc_2 = self.cache['c_1_times_omega']
-        else:
-            probs = self.predict(time_step=None, matchups=matchups, set_cache=False)
-            dp_dc_2 = np.matmul(c_1, self.omega)
+    @staticmethod
+    def _step(state, x, hparams):
+        new_state, prob, _, _ = Melo._step_core(state, x, hparams)
+        return new_state, prob
 
-        per_match_diff = (outcomes - probs)[:, None]
-        per_match_diff = np.hstack([per_match_diff, -per_match_diff])
-        per_competitor_diff = scatter_sum(per_match_diff, matchups, self.num_competitors)[active_in_period]
+    @staticmethod
+    def _step_period_start(state, x, hparams):
+        new_state, _, r, c = Melo._step_core(state, x, hparams)
+        return new_state, (r, c)
 
-        dp_dc_1 = np.matmul(c_2, self.omega)
-        dp_dc = np.stack([dp_dc_1, -1.0 * dp_dc_2], axis=1)
-        c_updates = self.eta_c * per_match_diff[:, :, None] * dp_dc
-        c_updates_pooled = scatter_sum(c_updates, matchups, self.num_competitors)[active_in_period]
+    def _gathered_probs(self, gathered):
+        r, c = gathered  # (n, 2) pre-match ratings, (n, 2, 2k) pre-match embeddings
+        melo_diff = ((c[:, 0] @ self.hparams['omega']) * c[:, 1]).sum(axis=1)
+        return jax.nn.sigmoid(self.hparams['alpha'] * (r[:, 0] - r[:, 1] + melo_diff))
 
-        self.ratings[active_in_period] += self.eta_r * per_competitor_diff
-        self.c[active_in_period] += c_updates_pooled
+    @staticmethod
+    def _batched_step(state, x, hparams):
+        """One padded rating period, mirroring v1 Melo.batched_update."""
+        ratings, cs = state
+        matchups, outcomes, mask, _ = x
+        flat_idx = matchups.reshape(-1)
+        omega = hparams['omega']
 
-    def online_update(self, matchups, outcomes, use_cache=False, **kwargs):
-        """treat the matchups in the rating period as if they were sequential"""
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            elo_diff = self.ratings[comp_1] - self.ratings[comp_2]
-            c_1 = self.c[comp_1]
-            c_2 = self.c[comp_2]
+        r = ratings[matchups]  # (p, 2)
+        c_1 = cs[matchups[:, 0]]  # (p, 2k)
+        c_2 = cs[matchups[:, 1]]
 
-            melo_diff = np.dot(c_1, np.dot(self.omega, c_2)).item()
-            prob = sigmoid(self.alpha * (elo_diff + melo_diff))
-            delta = outcomes[idx] - prob
+        c_1_times_omega = c_1 @ omega
+        melo_diff = (c_1_times_omega * c_2).sum(axis=1)
+        probs = jax.nn.sigmoid(hparams['alpha'] * (r[:, 0] - r[:, 1] + melo_diff))
 
-            rating_update = self.eta_r * delta
+        delta = (outcomes - probs) * mask  # padded matches contribute nothing
+        per_match_diff = jnp.stack([delta, -delta], axis=1)  # (p, 2)
+        pooled = jnp.zeros(ratings.shape[0], dtype=ratings.dtype).at[flat_idx].add(per_match_diff.reshape(-1))
+        ratings = ratings + hparams['eta_r'] * pooled
 
-            self.ratings[comp_1] += rating_update
-            self.ratings[comp_2] -= rating_update
+        dp_dc = jnp.stack([c_2 @ omega, -c_1_times_omega], axis=1)  # (p, 2, 2k)
+        c_updates = hparams['eta_c'] * per_match_diff[:, :, None] * dp_dc
+        cs = cs.at[flat_idx].add(c_updates.reshape(-1, cs.shape[1]))
+        return (ratings, cs), probs
 
-            dp_dc_1 = np.dot(self.omega, c_2).flatten()
-            dp_dc_2 = np.dot(self.omega, c_1).flatten()
+    @property
+    def ratings(self):
+        return np.asarray(self.state[0])
 
-            self.c[comp_1] += self.eta_c * delta * dp_dc_1
-            self.c[comp_2] -= self.eta_c * delta * dp_dc_2
+    @property
+    def c(self):
+        return np.asarray(self.state[1])
+
+    def leaderboard_ratings(self):
+        return self.ratings

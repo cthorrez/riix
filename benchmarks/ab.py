@@ -6,7 +6,13 @@ environment) and the head ref (default: your current working tree, including
 uncommitted changes), then prints a per-config speedup table.
 
 The *current* bench.py script is used for both sides so the measurement logic
-is identical even if the base ref predates it.
+is identical even if the base ref predates it. This stays meaningful across the
+jax-migration cutover commit: model names are unchanged (the jax classes take
+over the v1 names), bench.py's discovery doesn't depend on the base class, and
+riix.v2 (present only pre-cutover) simply contributes 'v2.<Name>' rows on that
+side, which compare.py skips as non-common. Only fit wall time is compared —
+the cutover's prediction-semantics change (prequential default) is invisible
+here because bench.py never requests probabilities.
 
 Usage:
     uv run python benchmarks/ab.py                       # current tree vs main
@@ -20,7 +26,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-BENCH_ARGS = ['--num-matchups', '--num-competitors', '--rating-periods', '--repeats', '--warmup', '--models', '--seed']
+BENCH_ARGS = [
+    '--num-matchups',
+    '--num-competitors',
+    '--rating-periods',
+    '--repeats',
+    '--warmup',
+    '--models',
+    '--model-kwargs',
+    '--seed',
+]
 
 
 def run(args, **kwargs):

@@ -1,18 +1,22 @@
-"""
-Online version of the Disc Decomposition rating system
+"""Online version of the Disc Decomposition rating system
 https://proceedings.mlr.press/v206/bertrand23a.html
-equations 8 and 9
-"""
+equations 8 and 9"""
 
 import numpy as np
+import jax
+import jax.numpy as jnp
+
 from riix.core.base import OnlineRatingSystem
-from riix.utils.math_utils import sigmoid, scatter_sum
 
 
 class OnlineDiscDecomp(OnlineRatingSystem):
-    """Online Disc Decomposition"""
+    """Online Disc Decomposition.
+
+    Carries (us, vs); P(1 beats 2) = sigmoid(v1 * v2 * (u1 - u2)). No time dynamics.
+    """
 
     rating_dim = 2
+    _predict_state_slots = (0, 1)  # (us, vs)
 
     def __init__(
         self,
@@ -21,70 +25,89 @@ class OnlineDiscDecomp(OnlineRatingSystem):
         initial_v: float = 1.0,
         eta: float = 0.02,
         update_method: str = 'online',
-        dtype=np.float64,
+        predict_mode: str = 'prequential',
+        dtype=jnp.float32,
     ):
-        super().__init__(competitors, update_method)
+        """
+        Args:
+            initial_u (float, optional): initial u (skill) value for every competitor. Defaults to 1.0.
+            initial_v (float, optional): initial v (consistency) value for every competitor. Defaults to 1.0.
+            eta (float, optional): gradient step size. Defaults to 0.02.
+            update_method / predict_mode / dtype: see `OnlineRatingSystem.__init__`.
+        """
+        super().__init__(competitors, dtype=dtype, update_method=update_method, predict_mode=predict_mode)
         self.initial_u = initial_u
         self.initial_v = initial_v
-        self.eta = eta
-        self.us = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_u
-        self.vs = np.zeros(shape=self.num_competitors, dtype=dtype) + initial_v
-        self.cache = {'probs': None}
+        self.hparams = {'eta': jnp.asarray(eta, dtype=self.dtype)}
 
-    def get_pre_match_ratings(self, matchups: np.ndarray, **kwargs):
-        us = self.us[matchups]
-        vs = self.vs[matchups]
-        ratings = np.concatenate((us[..., None], vs[..., None]), axis=2).reshape(us.shape[0], -1)
-        return ratings
+    def _initial_state(self):
+        return (
+            jnp.full(self.num_competitors, self.initial_u, dtype=self.dtype),
+            jnp.full(self.num_competitors, self.initial_v, dtype=self.dtype),
+        )
 
-    def predict(self, matchups: np.ndarray, set_cache: bool = False, **kwargs):
-        us_1 = self.us[matchups[:, 0]]
-        us_2 = self.us[matchups[:, 1]]
-        vs_1 = self.vs[matchups[:, 0]]
-        vs_2 = self.vs[matchups[:, 1]]
-        probs = sigmoid(vs_1 * vs_2 * (us_1 - us_2))
-        if set_cache:
-            self.cache['probs'] = probs
-        return probs
-
-    def batched_update(self, matchups, outcomes, use_cache=False, **kwargs):
-        """apply one update based on all of the results of the rating period"""
-        active_in_period = np.unique(matchups)
-        us = self.us[matchups]
-        vs = self.vs[matchups]
-        u_diffs = us[:, 0] - us[:, 1]
-        v_prods = vs[:, 0] * vs[:, 1]
-        if use_cache:
-            probs = self.cache['probs']
-        else:
-            probs = sigmoid(v_prods * u_diffs)
-        scaled_deltas = self.eta * (outcomes - probs)
+    @staticmethod
+    def _step_core(state, x, hparams):
+        us, vs = state
+        matchup, outcome = x
+        u = us[matchup]
+        v = vs[matchup]
+        u_diff = u[0] - u[1]
+        v_prod = v[0] * v[1]
+        prob = jax.nn.sigmoid(v_prod * u_diff)
+        scaled_delta = hparams['eta'] * (outcome - prob)
 
         # paper equation 8: u_i += eta * delta * v_i * v_j, u_j gets the negated update
-        u_updates = (scaled_deltas * v_prods)[:, None] * np.array([1.0, -1.0])
+        u_update = scaled_delta * v_prod
         # paper equation 9: v_i += eta * delta * v_j * (u_i - u_j), same sign for both sides
-        v_updates = (scaled_deltas * u_diffs)[:, None] * vs[:, [1, 0]]
+        v_update = scaled_delta * u_diff
 
-        self.us[active_in_period] += scatter_sum(u_updates, matchups, self.num_competitors)[active_in_period]
-        self.vs[active_in_period] += scatter_sum(v_updates, matchups, self.num_competitors)[active_in_period]
+        us = us.at[matchup].add(jnp.stack([u_update, -u_update]))
+        vs = vs.at[matchup].add(v_update * jnp.flip(v))
+        return (us, vs), prob, u, v
 
-    def online_update(self, matchups, outcomes, **kwargs):
-        for idx in range(matchups.shape[0]):
-            comp_1, comp_2 = matchups[idx]
-            u_1, u_2 = self.us[matchups[idx]]
-            v_1, v_2 = self.vs[matchups[idx]]
-            u_diff = u_1 - u_2
-            v_prod = v_1 * v_2
-            prob = sigmoid(v_prod * u_diff)
-            scaled_delta = self.eta * (outcomes[idx] - prob)
+    @staticmethod
+    def _step(state, x, hparams):
+        new_state, prob, _, _ = OnlineDiscDecomp._step_core(state, x, hparams)
+        return new_state, prob
 
-            u_update = scaled_delta * v_prod
-            v_update = scaled_delta * u_diff
+    @staticmethod
+    def _step_period_start(state, x, hparams):
+        new_state, _, u, v = OnlineDiscDecomp._step_core(state, x, hparams)
+        return new_state, (u, v)
 
-            self.us[comp_1] += u_update
-            self.us[comp_2] -= u_update
-            self.vs[comp_1] += v_update * v_2
-            self.vs[comp_2] += v_update * v_1
+    def _gathered_probs(self, gathered):
+        u, v = gathered  # (n, 2) pre-match us and vs
+        return jax.nn.sigmoid(v[:, 0] * v[:, 1] * (u[:, 0] - u[:, 1]))
+
+    @staticmethod
+    def _batched_step(state, x, hparams):
+        """One padded rating period, mirroring v1 OnlineDiscDecomp.batched_update."""
+        us, vs = state
+        matchups, outcomes, mask, _time_delta = x
+        flat_idx = matchups.reshape(-1)
+
+        u = us[matchups]  # (p, 2)
+        v = vs[matchups]
+        u_diffs = u[:, 0] - u[:, 1]
+        v_prods = v[:, 0] * v[:, 1]
+        probs = jax.nn.sigmoid(v_prods * u_diffs)
+        scaled_deltas = hparams['eta'] * (outcomes - probs) * mask
+
+        u_updates = (scaled_deltas * v_prods)[:, None] * jnp.array([1.0, -1.0], dtype=us.dtype)
+        v_updates = (scaled_deltas * u_diffs)[:, None] * v[:, ::-1]
+
+        us = us.at[flat_idx].add(u_updates.reshape(-1))
+        vs = vs.at[flat_idx].add(v_updates.reshape(-1))
+        return (us, vs), probs
+
+    @property
+    def us(self):
+        return np.asarray(self.state[0])
+
+    @property
+    def vs(self):
+        return np.asarray(self.state[1])
 
     def leaderboard_ratings(self):
         return self.us

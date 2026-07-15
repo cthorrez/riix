@@ -6,8 +6,17 @@ Known-value test for Elo against independently computed classic Elo arithmetic:
 
 import pytest
 import numpy as np
+import jax
 from riix.models.elo import Elo
 from riix.utils.data_utils import TimedPairDataset
+
+
+@pytest.fixture(scope='module', autouse=True)
+def enable_x64():
+    """Reference values need float64; jax needs the x64 flag for float64 arrays."""
+    jax.config.update('jax_enable_x64', True)
+    yield
+    jax.config.update('jax_enable_x64', False)
 
 
 def test_elo_known_values():
@@ -19,7 +28,7 @@ def test_elo_known_values():
     dataset = TimedPairDataset.init_from_arrays(
         time_steps=time_steps, matchups=matchups, outcomes=outcomes, competitors=['a', 'b', 'c']
     )
-    model = Elo(competitors=dataset.competitors, k=32.0, update_method='online')
+    model = Elo(competitors=dataset.competitors, k=32.0, update_method='online', dtype=np.float64)
     model.ratings = np.array([1500.0, 1400.0, 1550.0])
 
     probs = model.fit_dataset(dataset, return_pre_match_probs=True).probs
